@@ -14,11 +14,11 @@ class CreateUsersTable extends Migration
     public function up()
     {
         Schema::create('users', function (Blueprint $table) {
-            $table->string('id', 6)->primary();
+            $table->string('phone')->primary();
+            $table->string('id', 6);
             $table->string('firstName');
             $table->string('lastName');
             $table->string('role');
-            $table->string('phone');
             $table->string('type');
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
@@ -28,8 +28,8 @@ class CreateUsersTable extends Migration
             $table->string('specificLocationAddress');
             $table->string('RCNo');
             $table->string('TIN');
-            $table->string('vendorApproved');
-            $table->string('vendorID');
+            $table->boolean('approvedAsCollector');
+            $table->boolean('recoveryAutomated');
             $table->rememberToken();
             $table->timestamps();
         });

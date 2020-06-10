@@ -20,10 +20,10 @@ class User extends Authenticatable implements JWTSubject
      * @var array
      */
     protected $fillable = [
-        'firstName', 'lastName', 'phone', 'role', 'email', 'password', 'address', 'collectionCoverageZone', 'specificLocationAddress', 'RCNo', 'TIN', 'type', 'vendorApproved', 'vendorID'
+        'firstName', 'lastName', 'phone', 'role', 'email', 'password', 'address', 'collectionCoverageZone', 'specificLocationAddress', 'RCNo', 'TIN', 'type', 'approvedAsCollector'
     ];
 
-    protected $primaryKey = "id";
+    protected $primaryKey = "phone";
 
     public $timestamps = true;
 
@@ -45,8 +45,8 @@ class User extends Authenticatable implements JWTSubject
        'RCNo' => '',
        'TIN' => '',
        'type' => '',
-       'vendorApproved' => '',
-       'vendorID' => ''
+       'approvedAsCollector' => false,
+       'recoveryAutomated' => false,
     ];
 
 
@@ -78,7 +78,7 @@ class User extends Authenticatable implements JWTSubject
      */
     public function getJWTCustomClaims()
     {
-        return ['role' => $this->role];
+        return ['role' => $this->role, 'phone' => $this->phone];
     }
 
     public function setPasswordAttribute($value){

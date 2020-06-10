@@ -6,12 +6,15 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SignUpRequest;
+use App\Mail\registerMail;
+use App\materialPrices;
 use App\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Symfony\Component\HttpFoundation\Response;
 use Config;
+use Illuminate\Support\Facades\Mail;
 
 class AuthController extends Controller
 {
@@ -22,12 +25,21 @@ class AuthController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('auth:api', ['except' => ['loginWithPhone', 'loginWithEmail', 'signup', 'getUsers', 'getUserWithToken', 'getProducerWithToken','getCollectorWithToken', 'getVendorWithToken', 'getDisposedTonnage', 'updateUser', 'getUserWithID', 'registerVendor',
-        'approveCollector', 'getApprovedCollectors']]);
+        $this->middleware('auth:api', ['except' => ['loginWithPhone', 'loginWithEmail', 'signup', 'unauthenticated']]);
     }
 
-  public function getUsers()
+    public function unauthenticated()
     {
+        return response()->json(['error' => 'Unauthorised'], Response::HTTP_UNAUTHORIZED);
+    }
+
+  public function getUsers(Request $request, $id)
+    {
+        $user = User::find($id);
+        if ($user->role != 'Admin') 
+        {
+            return response()->json(['error' => 'Unauthorised'], Response::HTTP_UNAUTHORIZED);
+        };
         $users = User::all();
         return json_encode($users);
     }
@@ -88,99 +100,92 @@ class AuthController extends Controller
 
         User::create($request->all());
 
-        return $this->loginWithPhone($request);
+        return $this->sendMail($request);
     }
 
-    public function registerVendor(Request $request)
+    public function sendMail( $user ) 
     {
-        $apikey = $request->apikey;
-        if (!$this->validateApiKey( $apikey ) )
-         {
-           return response()->json(['error' => 'Api key Invalid or missing'], Response::HTTP_UNPROCESSABLE_ENTITY);
-        };
+        Mail::to($user->email)->send(new registerMail($user));
 
-        $id = $request->id;
-        $vendorID = $request->vendorID;
-        if (!$this->validateVendorID( $vendorID ) )
-         {
-           return response()->json([
-            'error' => 'There is no Vendor with the supplied ID'
-        ], Response::HTTP_NOT_FOUND);
-        };
-
-         $user = User::find($id);
-         $user->vendorID = $vendorID;
-         $user->vendorApproved = 'false';
-         $user->save(); 
-
-        return response()->json(['data' => 'Vendor Registered Successfully. Pending Vendor Approval'], Response::HTTP_CREATED);
+        return response()->json(['data' => 'Your account has been created successfully. Please check your email for your details'], Response::HTTP_CREATED);
     }
 
-    public function getApprovedCollectors(Request $request)
+    public function automatePickup( Request $request ) 
     {
-        $apikey = $request->apikey;
-        if (!$this->validateApiKey( $apikey ) )
-         {
-           return response()->json(['error' => 'Api key Invalid or missing'], Response::HTTP_UNPROCESSABLE_ENTITY);
-        };
+        $user = User::find( $request->phone );
+        $user->recoveryAutomated = true;
+        $user->save(); 
 
-        $id = $request->id;
-        $user = User::where('vendorID', $id)->get();
+        return response()->json(['data' => 'Your recovery has been automated successfully'], Response::HTTP_CREATED);
+    }
 
-        $users = array();
-        foreach ($user as $us) {
-           $usertobesent = (object) [
-                'collectorName' => $us->firstName,
-                'collectorID' => $us->id,
-                'vendorApproved' => $us->vendorApproved
-            ];
+    // public function registerVendor(Request $request)
+    // {
+
+    //     $id = $request->id;
+    //     $vendorID = $request->vendorID;
+    //     if (!$this->validateVendorID( $vendorID ) )
+    //      {
+    //        return response()->json([
+    //         'error' => 'There is no Vendor with the supplied ID'
+    //     ], Response::HTTP_NOT_FOUND);
+    //     };
+
+    //      $user = User::find($id);
+    //      $user->vendorID = $vendorID;
+    //      $user->vendorApproved = 'false';
+    //      $user->save(); 
+
+    //     return response()->json(['data' => 'Vendor Registered Successfully. Pending Vendor Approval'], Response::HTTP_CREATED);
+    // }
+
+    // public function getApprovedCollectors(Request $request)
+    // {
+
+    //     $id = $request->id;
+    //     $user = User::where('vendorID', $id)->get();
+
+    //     $users = array();
+    //     foreach ($user as $us) {
+    //        $usertobesent = (object) [
+    //             'collectorName' => $us->firstName,
+    //             'collectorID' => $us->id,
+    //             'vendorApproved' => $us->vendorApproved
+    //         ];
             
-            array_push($users, $usertobesent);
-        }
+    //         array_push($users, $usertobesent);
+    //     }
 
-           return json_encode($users);
+    //        return json_encode($users);
 
-    }
+    // }
 
-    public function approveCollector(Request $request)
-    {
-        $apikey = $request->apikey;
-        if (!$this->validateApiKey( $apikey ) )
-         {
-           return response()->json(['error' => 'Api key Invalid or missing'], Response::HTTP_UNPROCESSABLE_ENTITY);
-        };
+    // public function approveCollector(Request $request)
+    // {
 
-        $id = $request->collectorID;
-        $user = User::find($id);
+    //     $id = $request->collectorID;
+    //     $user = User::find($id);
         
-        $user->vendorApproved = 'true';
-        $user->save();
+    //     $user->vendorApproved = 'true';
+    //     $user->save();
 
-        return response()->json(['data' => 'Collector Approved.'], Response::HTTP_CREATED);
+    //     return response()->json(['data' => 'Collector Approved.'], Response::HTTP_CREATED);
 
-    }
+    // }
 
     public function validateVendorID($id)
     {
-        return !!User::where('id', $id)->first();
+        return !!User::find($id);
     }
 
-    public function updateUser(Request $request)
+    public function updateUser(Request $request, $id)
     {
-        $apikey = $request->apikey;
-        if (!$this->validateApiKey( $apikey ) )
-         {
-           return response()->json(['error' => 'Api key Invalid or missing'], Response::HTTP_UNPROCESSABLE_ENTITY);
-        };
-        $form = $request->form;
+        $user = User::where('id', $id)->first();
 
-        return json_encode($form->id);
-        $user = User::find($form->id);
-
-        $user->firstName = $form->firstName; 
-        $user->lastName = $form->lastName; 
-        $user->phone = $form->phone; 
-        $user->email = $form->email;
+        $user->firstName = $request->firstName;
+        $user->lastName = $request->lastName;
+        $user->phone = $request->phone;
+        $user->email = $request->email;
 
         $user->save(); 
 
@@ -192,80 +197,66 @@ class AuthController extends Controller
         return auth()->user();
     }
 
-    public function validateApiKey($apikey)
+    public function validateToken($token)
     {
-        if ( $apikey != config('apikey.apikey') )
+        
+        if ( $user = User::where('remember_token', $token)->first() )
         {
-            return false;
+            return true;
         }
 
-        return true;
+        return false;
     }
 
-    public function getUserWithToken(Request $request)
+    public function getUserWithToken(Request $request, $id)
     {
-        $apikey = $request->apikey;
-        if (!$this->validateApiKey( $apikey ) )
-         {
-           return response()->json(['error' => 'Api key Invalid or missing'], Response::HTTP_UNPROCESSABLE_ENTITY);
-        };
         $token = $request->token;
         $user = User::where('remember_token', $token)->first();
 
         return json_encode($user);
     }
 
-    public function getUserWithID(Request $request)
+    public function getUserWithID( $id )
     {
-        $apikey = $request->apikey;
-        if (!$this->validateApiKey( $apikey ) )
-         {
-           return response()->json(['error' => 'Api key Invalid or missing'], Response::HTTP_UNPROCESSABLE_ENTITY);
-        };
-        $id = $request->id;
         $user =  User::find($id);
 
         return json_encode($user);
     }
 
-    public function getCollectorWithToken(Request $request)
+    // public function getCollectorWithTonnage(Request $request, $id)
+    // {
+    //     $collectorToken = $request->input( 'token' );
+    //     if ($user = DB::table('users')->where('remember_token', $collectorToken)->first()) {
+    //         $tonnage = $this->getTonnage($user->id);
+    //         return response()->json([
+    //         'user' => $user,
+    //         'tonnage' =>  $tonnage
+    //         ]);
+    //     }
+    // }
+
+    public function getUserWithTonnage( $id )
     {
-        
-        $token = $request->input( 'token' );
-        if ($user = DB::table('users')->where('remember_token', $token)->first()) {
-            $tonage = $this->getDisposedTonnage($user->id);
+        if ($user = User::find($id)) {
+            $tonnage = $this->getProducedTonnage($user->id);
             return response()->json([
             'user' => $user,
-            'tonnage' =>  $tonage
+            'tonnage' =>  $tonnage
             ]);
         }
     }
 
-    public function getProducerWithToken(Request $request)
-    {
-        
-        $token = $request->input( 'token' );
-        if ($user = DB::table('users')->where('remember_token', $token)->first()) {
-            $tonage = $this->getProducedTonnage($user->id);
-            return response()->json([
-            'user' => $user,
-            'tonnage' =>  $tonage
-            ]);
-        }
-    }
-
-    public function getVendorWithToken(Request $request)
-    {
-        
-        $token = $request->input( 'token' );
-        if ($user = DB::table('users')->where('remember_token', $token)->first()) {
-            $tonage = $this->getDisposedTonnage($user->id);
-            return response()->json([
-            'user' => $user,
-            'tonnage' =>  $tonage
-            ]);
-        }
-    }
+    // public function getVendorWithTonnage(Request $request, $id)
+    // {
+    //     $vendorToken = $request->input( 'token' );
+    //     if ($user = DB::table('users')->where('remember_token', $vendorToken)->first()) {
+    //         $tonnage = $this->getTonnage($user->id);
+    //         return response()->json([
+    //         'user' => $user,
+    //         'tonnage' =>  $tonnage
+    //         ]);
+    //     }
+    // }
 
     public function getProducedTonnage($id)
     {
@@ -273,11 +264,68 @@ class AuthController extends Controller
             return $totaltonnage;
         }
     }
-    public function getDisposedTonnage($id)
+    public function getTonnage($id)
     {
         if ($totaltonnage = DB::table('collected_scraps')->where('collectorID', $id)->get()) {
             return $totaltonnage;
         }
+    }
+
+    public function getDisposedTonnage(Request $request, $id)
+    {
+        if ($totaltonnage = DB::table('collected_scraps')->where('collectorID', $id)->get()) {
+            return $totaltonnage;
+        }
+    }
+
+    public function getUserCount( $id )
+    {
+        $user = User::find($id);
+        if ($user->role != 'Admin') 
+        {
+            return response()->json(['error' => 'Unauthorised'], Response::HTTP_UNAUTHORIZED);
+        };
+
+       $producers = User::where('role', 'producer')->count();
+       $vendors = User::where('role', 'vendor')->count();
+       $collectors = User::where('role', 'collector')->count();
+
+       return response()->json([
+            'producers' => $producers,
+            'vendors' =>  $vendors,
+            'collectors' =>  $collectors
+            ]);
+    }
+    
+    public function getMaterialPrices( Request $request, $id )
+    {
+
+        $prices = materialPrices::all();
+
+        return response()->json([ 'prices' => $prices ]);
+    }
+
+    public function setMaterialPrices( Request $request, $id )
+    {
+        $user = User::find($id);
+        if ($user->role != 'Admin') 
+        {
+            return response()->json(['error' => 'Unauthorised'], Response::HTTP_UNAUTHORIZED);
+        };
+
+       if( $price = materialPrices::find('AAAAAA') ){
+            $price->metal = $request->metal;
+            $price->aluminium = $request->aluminium;
+            $price->paper = $request->paper;
+            $price->plastic = $request->plastic;
+            $price->others = $request->others;
+
+            $price->save(); 
+       } else {
+           materialPrices::create($request->all());
+       }
+
+        return response()->json(['message' => 'Material Prices Updated Successfully.'], Response::HTTP_CREATED);
     }
 
     public function payload( $token )

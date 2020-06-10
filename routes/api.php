@@ -3,15 +3,17 @@
 
 Route::resource('listedscrap', 'ListedScrapController');
 Route::get('getAllUsers', 'ListedScrapController@getUsers');
-Route::post('getSingleScrap', 'ListedScrapController@getSingleScrap');
+Route::get('getSingleScrap/{id}', 'ListedScrapController@getSingleScrap');
 
 Route::post('sendContactMessage', 'ContactMessageController@send');
 
 Route::post('listCollectedScrap', 'CollectedScrapController@listCollectedScrap');
 
+Route::get('unauthenticated', 'AuthController@unauthenticated')->name('unauthenticated');
+
 Route::group([
 
-    'middleware' => 'api',
+    // 'middleware' => 'api',
     'prefix' => 'auth'
 
 ], function () {
@@ -24,21 +26,30 @@ Route::group([
     Route::post('me', 'AuthController@me');
     Route::post('sendPasswordResetLink', 'ResetPasswordController@sendEmail');
     Route::post('resetPassword', 'ChangePasswordController@process');
-    Route::post('updateUser', 'AuthController@updateUser');
+    Route::put('updateUser/{id}', 'AuthController@updateUser');
 
-    Route::post('getUserWithID', 'AuthController@getUserWithID');
-    Route::get('getAllUsers', 'AuthController@getUsers');
+    Route::get('getUserWithID/{id}', 'AuthController@getUserWithID');
+    Route::get('getAllUsers/{id}', 'AuthController@getUsers');
     Route::get('getAllAdmins', 'AuthController@getAdmins');
-    Route::post('getUserWithToken', 'AuthController@getUserWithToken');
-    Route::post('getCollectorWithToken', 'AuthController@getCollectorWithToken');
-    Route::post('getProducerWithToken', 'AuthController@getProducerWithToken');
-    Route::post('getVendorWithToken', 'AuthController@getVendorWithToken');
+    Route::get('getUserWithTonnage/{id}', 'AuthController@getUserWithTonnage');
+    // Route::get('getCollectorWithTonnage/{id}', 'AuthController@getCollectorWithToken');
+    // Route::get('getProducerWithTonnage/{id}', 'AuthController@getProducerWithToken');
+    // Route::get('getVendorWithTonnage/{id}', 'AuthController@getVendorWithToken');
 
     Route::post('registerVendor', 'AuthController@registerVendor');
-    Route::post('getApprovedCollectors', 'AuthController@getApprovedCollectors');
+    Route::get('getApprovedCollectors/{id}', 'AuthController@getApprovedCollectors');
     Route::post('approveCollector', 'AuthController@approveCollector');
 
-    Route::post('getDisposedTonnage', 'AuthController@getDisposedTonnage');
+    Route::get('getProducedTonnage/{id}', 'AuthController@getProducedTonnage');
+    Route::get('getDisposedTonnage/{id}', 'AuthController@getDisposedTonnage');
+
+    Route::get('getUserCount/{id}', 'AuthController@getUserCount');
+
+    Route::get('getMaterialPrices/{id}', 'AuthController@getMaterialPrices');
+    Route::post('setMaterialPrices/{id}', 'AuthController@setMaterialPrices');
+    Route::post('automatePickup', 'AuthController@automatePickup');
+    
+    Route::post('requestPickup', 'requestPickupController@initiateRequest');
 
 
 });

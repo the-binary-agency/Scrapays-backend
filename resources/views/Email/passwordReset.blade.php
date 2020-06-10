@@ -4,7 +4,7 @@
 A password change was requested on your account with us. <br>
 Click on the button below to change your password.
 
-@component('mail::button', ['url' => 'http://localhost:4200/response-password-reset?token='.$token ])
+@component('mail::button', ['url' => 'http://scrapays.com/response-password-reset?token='.$token ])
 Reset Password
 @endcomponent
 
