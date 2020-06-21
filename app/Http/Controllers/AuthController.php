@@ -15,6 +15,7 @@ use Tymon\JWTAuth\Facades\JWTAuth;
 use Symfony\Component\HttpFoundation\Response;
 use Config;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 
 class AuthController extends Controller
 {
@@ -180,12 +181,42 @@ class AuthController extends Controller
 
     public function updateUser(Request $request, $id)
     {
+        $this->validate($request, [
+            'avatarImage' => 'file|max:2048'
+        ]);
+        
         $user = User::where('id', $id)->first();
+
+        if( $request->avatarImage ){
+            // get the File Name and Extension
+            $fileNameWithExt = $request->file('avatarImage')->getClientOriginalName();
+            // let get only the file name
+            $fileName = pathinfo($fileNameWithExt, PATHINFO_FILENAME);  // Php function
+            // get file extension
+            $fileExt = $request->file('avatarImage')->getClientOriginalExtension();
+            // rename the file
+            $fileNameToStore = $fileName ."_" . time() .".".$fileExt;
+
+            $path = $request->file('avatarImage')->storeAs('public/profile_pictures', $fileNameToStore);
+
+            Storage::delete('public/Uploaded_Videos/'.$user->avatarImage);
+        }
 
         $user->firstName = $request->firstName;
         $user->lastName = $request->lastName;
         $user->phone = $request->phone;
         $user->email = $request->email;
+        $user->address = $request->address;
+        $user->companyName = $request->companyName;
+        $user->companySize = $request->companySize;
+        $user->industry = $request->industry;
+        $user->sex = $request->sex;
+        $user->requestAddress = $request->requestAddress;
+        $user->hostAddress = $request->hostAddress;
+        $user->hostDuration = $request->hostDuration;
+        $user->spaceSize = $request->spaceSize;
+        $user->hostStartDate = $request->hostStartDate;
+        $user->collectionCoverageZone = $request->collectionCoverageZone;
 
         $user->save(); 
 
@@ -297,9 +328,13 @@ class AuthController extends Controller
             ]);
     }
     
-    public function getMaterialPrices( Request $request, $id )
+    public function getMaterialPrices( $id )
     {
-
+        $user = User::find($id);
+        if (!$user) 
+        {
+            return response()->json(['error' => 'Unauthorised'], Response::HTTP_UNAUTHORIZED);
+        };
         $prices = materialPrices::all();
 
         return response()->json([ 'prices' => $prices ]);
@@ -313,17 +348,47 @@ class AuthController extends Controller
             return response()->json(['error' => 'Unauthorised'], Response::HTTP_UNAUTHORIZED);
         };
 
-       if( $price = materialPrices::find('AAAAAA') ){
-            $price->metal = $request->metal;
-            $price->aluminium = $request->aluminium;
-            $price->paper = $request->paper;
-            $price->plastic = $request->plastic;
-            $price->others = $request->others;
+        $prices = array();
+        foreach ($request->input('material_name') as $name) {
+           $pricestobesent = (object) [
+                'name' => $name,
+                'price' => '',
+                'image' => ''
+            ];
+            
+            array_push($prices, $pricestobesent);
+        }
+        $i = 0;
+        foreach ($request->input('material_price') as $price) {
+            $prices[$i]->price = $price;
+            $i++;
+        }
+        $i = 0;
+        if( $files = $request->file('material_img') ){
+            foreach($files as $image){
+                //  get the File Name and Extension
+                $fileNameWithExt = $image->getClientOriginalName();
+                // let get only the file name
+                $fileName = pathinfo($fileNameWithExt, PATHINFO_FILENAME);  
+                // get file extension
+                $fileExt = $image->getClientOriginalExtension();
+                // rename the file
+                $fileNameToStore = $fileName ."_" . time() .".".$fileExt;
+    
+                $path = $image->storeAs('public/material_list_images', $fileNameToStore);
+                $prices[$i]->image = $fileNameToStore;
+                $i++;
+            }
+        }
 
-            $price->save(); 
-       } else {
-           materialPrices::create($request->all());
-       }
+        foreach($prices as $price){
+            $material = new materialPrices;
+            
+            $material->name = $price->name;
+            $material->price = $price->price;
+            $material->image = $price->image;
+            $material->save();
+        }
 
         return response()->json(['message' => 'Material Prices Updated Successfully.'], Response::HTTP_CREATED);
     }

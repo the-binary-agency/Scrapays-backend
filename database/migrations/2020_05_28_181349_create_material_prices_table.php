@@ -14,8 +14,9 @@ class CreateMaterialPricesTable extends Migration
     public function up()
     {
         Schema::create('material_prices', function (Blueprint $table) {
-            $table->string('material')->primary();
+            $table->string('name')->primary();
             $table->bigInteger('price');
+            $table->text('image');
             $table->timestamps();
         });
     }

@@ -20,7 +20,7 @@ class User extends Authenticatable implements JWTSubject
      * @var array
      */
     protected $fillable = [
-        'firstName', 'lastName', 'phone', 'role', 'email', 'password', 'address', 'collectionCoverageZone', 'specificLocationAddress', 'RCNo', 'TIN', 'type', 'approvedAsCollector'
+        'firstName', 'lastName', 'phone', 'role', 'email', 'password', 'address', 'avatarImage', 'collectionCoverageZone', 'approvedAsCollector','companyName','companySize','industry','sex','requestAddress','hostAddress','hostDuration','spaceSize','hostStartDate','collectionCoverageZone','inviteCode'
     ];
 
     protected $primaryKey = "phone";
@@ -39,14 +39,22 @@ class User extends Authenticatable implements JWTSubject
     ];
 
     protected $attributes = [
+        'avatarImage' => '',
        'address' => '',
        'collectionCoverageZone' => '',
-       'specificLocationAddress' => '',
-       'RCNo' => '',
-       'TIN' => '',
-       'type' => '',
        'approvedAsCollector' => false,
        'recoveryAutomated' => false,
+       'companyName' => '',
+       'companySize' => '',
+        'industry' => '',
+        'sex' => '',
+        'requestAddress' => '',
+        'hostAddress' => '',
+        'hostDuration' => '',
+        'spaceSize' => '',
+        'hostStartDate' => '',
+        'collectionCoverageZone' => '',
+        'inviteCode' => ''
     ];
 
 

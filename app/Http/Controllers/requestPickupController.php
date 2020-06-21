@@ -15,6 +15,7 @@ class requestPickupController extends Controller
     public $user;
     public $materials;
     public $schedule;
+    public $time;
     public $pickup;
 
     public function initiateRequest(Request $request)
@@ -22,6 +23,7 @@ class requestPickupController extends Controller
         $this->user = User::find($request->id);
         $this->materials = $request->materials;
         $this->schedule = $request->schedule;
+        $this->time = $request->scheduleTime;
         return $this->verifyUser($request->id);
     }
 
@@ -49,7 +51,7 @@ class requestPickupController extends Controller
         $pickup->userID = $this->user->phone;
         $pickup->materials = json_encode($materials);
         $pickup->address = $this->user->address;
-        $pickup->schedule = $this->schedule;
+        $pickup->schedule = $this->schedule + ' ' + $this->time;
         $pickup->status = 'Pending';
 
         $pickup->save();
