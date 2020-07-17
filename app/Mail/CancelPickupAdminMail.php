@@ -7,20 +7,22 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 
-class registerMail extends Mailable
+class CancelPickupAdminMail extends Mailable
 {
     use Queueable, SerializesModels;
 
     public $user;
+    public $pickup;
 
     /**
      * Create a new message instance.
      *
      * @return void
      */
-    public function __construct( $user )
+    public function __construct($user, $pickup)
     {
         $this->user = $user;
+        $this->pickup = $pickup;
     }
 
     /**
@@ -30,8 +32,9 @@ class registerMail extends Mailable
      */
     public function build()
     {
-        return $this->markdown('Email.registerEnterprise')->with([
-            'user' => $this->user
+        return $this->markdown('Email.CancelPickupAdmin')->with([
+            'user' => $this->user,
+            'pickup' => $this->pickup
             ]);
     }
 }

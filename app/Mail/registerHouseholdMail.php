@@ -7,7 +7,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 
-class registerMail extends Mailable
+class registerHouseholdMail extends Mailable
 {
     use Queueable, SerializesModels;
 
@@ -30,7 +30,7 @@ class registerMail extends Mailable
      */
     public function build()
     {
-        return $this->markdown('Email.registerEnterprise')->with([
+        return $this->markdown('Email.registerHousehold')->with([
             'user' => $this->user
             ]);
     }

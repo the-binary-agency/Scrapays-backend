@@ -15,6 +15,7 @@ class CreateListedScrapsTable extends Migration
     {
         Schema::create('listed_scraps', function (Blueprint $table) {
             $table->string('id', 6)->primary();
+            $table->string('companyName'); 
             $table->string('firstName'); 
             $table->string('lastName'); 
             $table->string('phone'); 

@@ -38,11 +38,3 @@ class requestPickupMail extends Mailable
             ]);
     }
 }
-// MAIL_DRIVER=smtp
-// MAIL_HOST=mail.scrapays.com
-// MAIL_PORT=465
-// MAIL_USERNAME=no-reply@scrapays.com
-// MAIL_PASSWORD=scrapays2019
-// MAIL_ENCRYPTION=tls
-// MAIL_FROM_ADDRESS=no-reply@scrapays.com
-// MAIL_FROM_NAME="${APP_NAME}"

@@ -19,9 +19,7 @@ class User extends Authenticatable implements JWTSubject
      *
      * @var array
      */
-    protected $fillable = [
-        'firstName', 'lastName', 'phone', 'role', 'email', 'password', 'address', 'avatarImage', 'collectionCoverageZone', 'approvedAsCollector','companyName','companySize','industry','sex','requestAddress','hostAddress','hostDuration','spaceSize','hostStartDate','collectionCoverageZone','inviteCode'
-    ];
+    protected $fillable = [ 'firstName', 'lastName', 'phone', 'email' ];
 
     protected $primaryKey = "phone";
 
@@ -29,31 +27,19 @@ class User extends Authenticatable implements JWTSubject
 
     public $incrementing = false;
 
+    protected $with = ['userable'];
+
     /**
      * The attributes that should be hidden for arrays.
      *
      * @var array
      */
     protected $hidden = [
-        'password', 'remember_token',
+        'password', 'remember_token', 'userable_id'
     ];
 
     protected $attributes = [
-        'avatarImage' => '',
-       'address' => '',
-       'collectionCoverageZone' => '',
-       'approvedAsCollector' => false,
-       'recoveryAutomated' => false,
-       'companyName' => '',
-       'companySize' => '',
-        'industry' => '',
-        'sex' => '',
-        'requestAddress' => '',
-        'hostAddress' => '',
-        'hostDuration' => '',
-        'spaceSize' => '',
-        'hostStartDate' => '',
-        'collectionCoverageZone' => '',
+        'avatarImage' => '',   
         'inviteCode' => ''
     ];
 
@@ -67,7 +53,10 @@ class User extends Authenticatable implements JWTSubject
         'email_verified_at' => 'datetime',
     ];
 
-    // Rest omitted for brevity
+    public function userable()
+    {
+        return $this->morphTo();
+    }
 
     /**
      * Get the identifier that will be stored in the subject claim of the JWT.
@@ -86,7 +75,7 @@ class User extends Authenticatable implements JWTSubject
      */
     public function getJWTCustomClaims()
     {
-        return ['role' => $this->role, 'phone' => $this->phone];
+        return ['userable_type' => $this->userable_type, 'phone' => $this->phone];
     }
 
     public function setPasswordAttribute($value){
@@ -98,7 +87,7 @@ class User extends Authenticatable implements JWTSubject
     parent::boot();
 
     static::creating(function ($user) {
-        $user->id = strtoupper(Str::random(6));
+        $user->id = strtoupper(Str::random(9));
     });
 }
 }

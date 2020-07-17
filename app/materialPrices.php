@@ -11,8 +11,6 @@ class materialPrices extends Model
 
     public $timestamps = true;
 
-    public $incrementing = false;
-
     protected $attributes = [
       
     ];

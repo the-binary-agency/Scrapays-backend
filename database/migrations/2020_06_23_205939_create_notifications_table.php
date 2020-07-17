@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateMaterialPricesTable extends Migration
+class CreateNotificationsTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,10 +13,11 @@ class CreateMaterialPricesTable extends Migration
      */
     public function up()
     {
-        Schema::create('material_prices', function (Blueprint $table) {
-            $table->string('name')->primary();
-            $table->bigInteger('price');
-            $table->text('image');
+        Schema::create('notifications', function (Blueprint $table) {
+            $table->string('id', 6)->primary();
+            $table->string('user_id');
+            $table->longText('notification_body');
+            $table->boolean('read')->default(false);
             $table->timestamps();
         });
     }
@@ -28,6 +29,6 @@ class CreateMaterialPricesTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('material_prices');
+        Schema::dropIfExists('notifications');
     }
 }

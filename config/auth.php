@@ -45,7 +45,7 @@ return [
             'driver' => 'jwt',
             'provider' => 'users',
             'hash' => false,
-            'storage_key ' => 'remember_token'
+            'storage_key ' => 'api_token'
         ],
     ],
 

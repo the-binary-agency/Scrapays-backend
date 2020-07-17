@@ -2,23 +2,29 @@
 
 namespace App\Http\Controllers;
 
+use App\Agent;
+use App\Collector;
+use App\Enterprise;
+use App\Host;
+use App\Household;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SignUpRequest;
+use App\Mail\registerHouseholdMail;
 use App\Mail\registerMail;
-use App\materialPrices;
+use App\Notification;
 use App\User;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Symfony\Component\HttpFoundation\Response;
-use Config;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Notifications;
 
 class AuthController extends Controller
 {
+    // use Notifications;
     /**
      * Create a new AuthController instance.
      *
@@ -26,41 +32,175 @@ class AuthController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('auth:api', ['except' => ['loginWithPhone', 'loginWithEmail', 'signup', 'unauthenticated']]);
+        $this->middleware('auth:api', ['except' => [
+            'loginWithPhone',
+            'loginWithEmail',
+            'registerwithussd',
+            'registerEnterprise',
+            'registerHousehold',
+            'registerHost',
+            'registerCollector',
+            'registerAgent',
+            'unauthenticated'
+            ]]);
     }
 
     public function unauthenticated()
     {
-        return response()->json(['error' => 'Unauthorised'], Response::HTTP_UNAUTHORIZED);
+        return response()->json(['error' => 'You are not authorised.'], Response::HTTP_UNAUTHORIZED);
     }
 
-  public function getUsers(Request $request, $id)
+    public function registerEnterprise(SignUpRequest $request)
     {
-        $user = User::find($id);
-        if ($user->role != 'Admin') 
-        {
-            return response()->json(['error' => 'Unauthorised'], Response::HTTP_UNAUTHORIZED);
-        };
-        $users = User::all();
-        return json_encode($users);
+
+        $user = new User;
+
+        $user->firstName = $request->firstName;
+        $user->lastName = $request->lastName;
+        $user->phone = $request->phone;
+        $user->email = $request->email;
+        $user->password = $request->password;
+        $user->inviteCode = $request->inviteCode;
+        $user->save();
+
+        $enterprise = new Enterprise;
+        
+        $enterprise->companyName = $request->companyName;
+        $enterprise->companySize = $request->companySize;
+        $enterprise->industry = $request->industry;
+        $enterprise->sex = $request->sex;
+        $enterprise->recoveryAutomated = false;
+        $enterprise->save();
+
+        $enterprise->user()->save($user);
+
+        return $this->sendSignupMail($request, 'Enterprise');
     }
 
-//   public function getUsers()
-//     {
-//         $users = DB::table('users')->where([
-//                                                     ['role', 'Producer'],
-//                                                     ['role', 'Vendor'],
-//                                                     ['role', 'Collector'],
-//                                                     ])->get();
-//         return json_encode($users);
-//     }
+    public function registerwithussd(Request $request)
+    {
+        $this->validate($request, [
+            'firstName' => 'required',
+            'lastName' => 'required',
+            'phone' => 'required|unique:users',
+            'requestAddress' => 'required',
+        ]);
 
-//   public function getAdmins()
-//     {
-//         $admins = User::all();
-//         // DB::table('users')->where('role', 'Admin')->get();
-//         return json_encode($admins);
-//     }
+        $user = new User;
+        $user->firstName = $request->firstName;
+        $user->lastName = $request->lastName;
+        $user->phone = $request->phone;
+        $user->email = null;
+        $user->password = '123456';
+        $user->inviteCode = $request->inviteCode;
+        $user->save();
+
+        $household = new Household;
+        $household->requestAddress = $request->requestAddress;
+        $household->save();
+
+         $household->user()->save($user);
+
+         return response()->json(['Success' => 'Household Account created successfully'], 200);
+        // return $this->sendSignupMail($request);
+    }
+
+    public function registerHousehold(Request $request)
+    {
+        $this->validate($request, [
+            'firstName' => 'required',
+            'lastName' => 'required',
+            'phone' => 'required|unique:users',
+            'email' => 'required|email|unique:users',
+            'requestAddress' => 'required',
+            'password' => 'required|confirmed' 
+        ]);
+
+        $user = new User;
+        $user->firstName = $request->firstName;
+        $user->lastName = $request->lastName;
+        $user->phone = $request->phone;
+        $user->email = $request->email;
+        $user->password = $request->password;
+        $user->inviteCode = $request->inviteCode;
+        $user->save();
+
+        $household = new Household;
+        $household->requestAddress = $request->requestAddress;
+        $household->save();
+
+         $household->user()->save($user);
+
+        return $this->sendSignupMail($request, 'Household');
+    }
+
+    public function registerHost(SignUpRequest $request)
+    {
+
+        $user = new User;
+        $user->firstName = $request->firstName;
+        $user->lastName = $request->lastName;
+        $user->phone = $request->phone;
+        $user->email = $request->email;
+        $user->password = $request->password;
+        $user->inviteCode = $request->inviteCode;
+        $user->save();
+
+        $host = new Host;
+        $host->hostAddress = $request->hostAddress;
+        $host->spaceSize = $request->spaceSize;
+        $host->hostDuration = $request->hostDuration;
+        $host->hostStartDate = $request->hostStartDate;
+        $host->save();
+
+         $host->user()->save($user);
+
+        return $this->sendSignupMail($request, 'Host');
+    }
+
+    public function registerCollector(SignUpRequest $request)
+    {
+
+        $user = new User;
+        $user->firstName = $request->firstName;
+        $user->lastName = $request->lastName;
+        $user->phone = $request->phone;
+        $user->email = $request->email;
+        $user->password = $request->password;
+        $user->inviteCode = $request->inviteCode;
+        $user->save();
+
+        $collector = new Collector;
+        $collector->collectionCoverageZone = $request->collectionCoverageZone;
+        $collector->approvedAsCollector = false;
+        $collector->save();
+
+         $collector->user()->save($user);
+
+        return $this->sendSignupMail($request, 'Collector');
+    }
+
+    public function registerAgent(SignUpRequest $request)
+    {
+
+        $user = new User;
+        $user->firstName = $request->firstName;
+        $user->lastName = $request->lastName;
+        $user->phone = $request->phone;
+        $user->email = $request->email;
+        $user->password = $request->password;
+        $user->inviteCode = $request->inviteCode;
+        $user->save();
+
+        $agent = new Agent;
+        $agent->collectorCoverageZone = $request->collectorCoverageZone;
+        $agent->approvedAsCollector = $request->approvedAsCollector;
+        $agent->save();
+
+         $agent->user()->save($user);
+
+        return $this->sendSignupMail($request,'Agent');
+    }
 
     /**
      * Get a JWT token via given credentials.
@@ -96,153 +236,44 @@ class AuthController extends Controller
         return response()->json(['error' => 'Credentials do not match our records.'], 401);
     }
 
-    public function signup(SignUpRequest $request)
+    public function sendSignupMail( $user, $type ) 
     {
-
-        User::create($request->all());
-
-        return $this->sendMail($request);
-    }
-
-    public function sendMail( $user ) 
-    {
-        Mail::to($user->email)->send(new registerMail($user));
+        if($type == 'Enterprise')
+        {
+            Mail::to($user->email)->send(new registerMail($user));
+        } else if($type == 'Household')
+        {
+            Mail::to($user->email)->send(new registerHouseholdMail($user));
+        }
+        // else if($type == 'Household')
+        // {
+        //     Mail::to($user->email)->send(new registerHouseholdMail($user));
+        // }else if($type == 'Household')
+        // {
+        //     Mail::to($user->email)->send(new registerHouseholdMail($user));
+        // }else if($type == 'Household')
+        // {
+        //     Mail::to($user->email)->send(new registerHouseholdMail($user));
+        // }
 
         return response()->json(['data' => 'Your account has been created successfully. Please check your email for your details'], Response::HTTP_CREATED);
     }
 
-    public function automatePickup( Request $request ) 
+  public function getUsers(Request $request, $id)
     {
-        $user = User::find( $request->phone );
-        $user->recoveryAutomated = true;
-        $user->save(); 
-
-        return response()->json(['data' => 'Your recovery has been automated successfully'], Response::HTTP_CREATED);
-    }
-
-    // public function registerVendor(Request $request)
-    // {
-
-    //     $id = $request->id;
-    //     $vendorID = $request->vendorID;
-    //     if (!$this->validateVendorID( $vendorID ) )
-    //      {
-    //        return response()->json([
-    //         'error' => 'There is no Vendor with the supplied ID'
-    //     ], Response::HTTP_NOT_FOUND);
-    //     };
-
-    //      $user = User::find($id);
-    //      $user->vendorID = $vendorID;
-    //      $user->vendorApproved = 'false';
-    //      $user->save(); 
-
-    //     return response()->json(['data' => 'Vendor Registered Successfully. Pending Vendor Approval'], Response::HTTP_CREATED);
-    // }
-
-    // public function getApprovedCollectors(Request $request)
-    // {
-
-    //     $id = $request->id;
-    //     $user = User::where('vendorID', $id)->get();
-
-    //     $users = array();
-    //     foreach ($user as $us) {
-    //        $usertobesent = (object) [
-    //             'collectorName' => $us->firstName,
-    //             'collectorID' => $us->id,
-    //             'vendorApproved' => $us->vendorApproved
-    //         ];
-            
-    //         array_push($users, $usertobesent);
-    //     }
-
-    //        return json_encode($users);
-
-    // }
-
-    // public function approveCollector(Request $request)
-    // {
-
-    //     $id = $request->collectorID;
-    //     $user = User::find($id);
-        
-    //     $user->vendorApproved = 'true';
-    //     $user->save();
-
-    //     return response()->json(['data' => 'Collector Approved.'], Response::HTTP_CREATED);
-
-    // }
-
-    public function validateVendorID($id)
-    {
-        return !!User::find($id);
-    }
-
-    public function updateUser(Request $request, $id)
-    {
-        $this->validate($request, [
-            'avatarImage' => 'file|max:2048'
-        ]);
-        
-        $user = User::where('id', $id)->first();
-
-        if( $request->avatarImage ){
-            // get the File Name and Extension
-            $fileNameWithExt = $request->file('avatarImage')->getClientOriginalName();
-            // let get only the file name
-            $fileName = pathinfo($fileNameWithExt, PATHINFO_FILENAME);  // Php function
-            // get file extension
-            $fileExt = $request->file('avatarImage')->getClientOriginalExtension();
-            // rename the file
-            $fileNameToStore = $fileName ."_" . time() .".".$fileExt;
-
-            $path = $request->file('avatarImage')->storeAs('public/profile_pictures', $fileNameToStore);
-
-            Storage::delete('public/Uploaded_Videos/'.$user->avatarImage);
-        }
-
-        $user->firstName = $request->firstName;
-        $user->lastName = $request->lastName;
-        $user->phone = $request->phone;
-        $user->email = $request->email;
-        $user->address = $request->address;
-        $user->companyName = $request->companyName;
-        $user->companySize = $request->companySize;
-        $user->industry = $request->industry;
-        $user->sex = $request->sex;
-        $user->requestAddress = $request->requestAddress;
-        $user->hostAddress = $request->hostAddress;
-        $user->hostDuration = $request->hostDuration;
-        $user->spaceSize = $request->spaceSize;
-        $user->hostStartDate = $request->hostStartDate;
-        $user->collectionCoverageZone = $request->collectionCoverageZone;
-
-        $user->save(); 
-
-        return response()->json(['data' => 'Profile Updated Successfully.'], Response::HTTP_CREATED);
-    }
-
-    public function addRoleToToken()
-    {
-        return auth()->user();
-    }
-
-    public function validateToken($token)
-    {
-        
-        if ( $user = User::where('remember_token', $token)->first() )
+        $user = User::find($id);
+        if ($user->userable_type != 'App\Admin') 
         {
-            return true;
-        }
-
-        return false;
+            return response()->json(['error' => 'Unauthorised'], Response::HTTP_UNAUTHORIZED);
+        };
+        $users = User::all();
+        return json_encode($users);
     }
 
     public function getUserWithToken(Request $request, $id)
     {
         $token = $request->token;
-        $user = User::where('remember_token', $token)->first();
+        $user = User::where('api_token', $token)->first();
 
         return json_encode($user);
     }
@@ -251,25 +282,13 @@ class AuthController extends Controller
     {
         $user =  User::find($id);
 
-        return json_encode($user);
+        return response()->json($user, Response::HTTP_OK);
     }
-
-    // public function getCollectorWithTonnage(Request $request, $id)
-    // {
-    //     $collectorToken = $request->input( 'token' );
-    //     if ($user = DB::table('users')->where('remember_token', $collectorToken)->first()) {
-    //         $tonnage = $this->getTonnage($user->id);
-    //         return response()->json([
-    //         'user' => $user,
-    //         'tonnage' =>  $tonnage
-    //         ]);
-    //     }
-    // }
 
     public function getUserWithTonnage( $id )
     {
         if ($user = User::find($id)) {
-            $tonnage = $this->getProducedTonnage($user->id);
+            $tonnage = $this->getProducedTonnage($user);
             return response()->json([
             'user' => $user,
             'tonnage' =>  $tonnage
@@ -277,28 +296,98 @@ class AuthController extends Controller
         }
     }
 
-    // public function getVendorWithTonnage(Request $request, $id)
-    // {
-    //     $vendorToken = $request->input( 'token' );
-    //     if ($user = DB::table('users')->where('remember_token', $vendorToken)->first()) {
-    //         $tonnage = $this->getTonnage($user->id);
-    //         return response()->json([
-    //         'user' => $user,
-    //         'tonnage' =>  $tonnage
-    //         ]);
-    //     }
-    // }
-
-    public function getProducedTonnage($id)
+    public function getCollectorWithTonnage( $id )
     {
-        if ($totaltonnage = DB::table('collected_scraps')->where('producerID', $id)->get()) {
-            return $totaltonnage;
+        if ($user = User::find($id)) {
+            $tonnage = $this->getTonnage($id);
+            return response()->json([
+            'user' => $user,
+            'tonnage' =>  $tonnage
+            ]);
         }
     }
+
+    public function getUserWithNotifications( $id )
+    {
+        if ($user = User::find($id)) {
+            $notifications = DB::table('notifications')->where('user_id', $id)->get();
+            return response()->json([
+            'user' => $user,
+            'notifications' =>  $notifications
+            ]);
+        }
+    }
+
+    public function getProducedTonnage($user)
+    {
+        $id = $user->id;
+        if($user->recoveryAutomated == true){
+            $scrap = array();
+            if ($totaltonnage = DB::table('collected_scraps')->where('producerPhone', $id)->pluck('materials')) {
+
+                foreach ($totaltonnage as $tt) {
+                    foreach(json_decode($tt) as $mat){
+                            array_push($scrap, $mat);
+                    }
+                }
+
+                $holder = (object) [];
+
+                array_filter($scrap, function ($d) use ($holder) {
+                    if (property_exists($holder, $d->name)) {
+                        $holder->{$d->name} = $holder->{$d->name} + $d->weight;
+                    } else {
+                        $holder->{$d->name} = $d->weight;
+                    }
+                });
+
+                $obj2 = array();
+
+                foreach($holder as $prop => $value) {
+                    array_push($obj2, (object)[
+                        'name' => $prop,
+                        'weight' => $holder->{$prop}
+                        ]);
+                }
+
+                return $obj2;
+            }
+        }else{
+            $inv = DB::table('inventories')->where('enterpriseID', $id);
+        }
+    }
+
     public function getTonnage($id)
     {
-        if ($totaltonnage = DB::table('collected_scraps')->where('collectorID', $id)->get()) {
-            return $totaltonnage;
+        $scrap = array();
+        if ($totaltonnage = DB::table('collected_scraps')->where('collectorID', $id)->pluck('materials')) {
+
+            foreach ($totaltonnage as $tt) {
+                foreach(json_decode($tt) as $mat){
+                        array_push($scrap, $mat);
+                }
+            }
+
+             $holder = (object) [];
+
+            array_filter($scrap, function ($d) use ($holder) {
+                if (property_exists($holder, $d->name)) {
+                    $holder->{$d->name} = $holder->{$d->name} + $d->weight;
+                } else {
+                    $holder->{$d->name} = $d->weight;
+                }
+            });
+
+             $obj2 = array();
+
+            foreach($holder as $prop => $value) {
+                array_push($obj2, (object)[
+                    'name' => $prop,
+                    'weight' => $holder->{$prop}
+                    ]);
+            }
+
+            return $obj2;
         }
     }
 
@@ -312,14 +401,14 @@ class AuthController extends Controller
     public function getUserCount( $id )
     {
         $user = User::find($id);
-        if ($user->role != 'Admin') 
+        if ($user->userable_type != 'App\Admin') 
         {
             return response()->json(['error' => 'Unauthorised'], Response::HTTP_UNAUTHORIZED);
         };
 
-       $producers = User::where('role', 'producer')->count();
-       $vendors = User::where('role', 'vendor')->count();
-       $collectors = User::where('role', 'collector')->count();
+       $producers = User::where('userable_type', 'App\Enterprise')->count() + User::where('userable_type', 'App\Household')->count();
+       $vendors = User::where('userable_type', 'App\Vendor')->count();
+       $collectors = User::where('userable_type', 'App\Collector')->count();
 
        return response()->json([
             'producers' => $producers,
@@ -327,72 +416,114 @@ class AuthController extends Controller
             'collectors' =>  $collectors
             ]);
     }
-    
-    public function getMaterialPrices( $id )
+
+    public function updateUser(Request $request, $id)
     {
+        $this->validate($request, [
+            'firstName' => 'required|string',
+            'lastName' => 'required|string',
+            'email' => 'required|email',
+        ]);
+        
         $user = User::find($id);
-        if (!$user) 
-        {
-            return response()->json(['error' => 'Unauthorised'], Response::HTTP_UNAUTHORIZED);
-        };
-        $prices = materialPrices::all();
-
-        return response()->json([ 'prices' => $prices ]);
-    }
-
-    public function setMaterialPrices( Request $request, $id )
-    {
-        $user = User::find($id);
-        if ($user->role != 'Admin') 
-        {
-            return response()->json(['error' => 'Unauthorised'], Response::HTTP_UNAUTHORIZED);
-        };
-
-        $prices = array();
-        foreach ($request->input('material_name') as $name) {
-           $pricestobesent = (object) [
-                'name' => $name,
-                'price' => '',
-                'image' => ''
-            ];
-            
-            array_push($prices, $pricestobesent);
-        }
-        $i = 0;
-        foreach ($request->input('material_price') as $price) {
-            $prices[$i]->price = $price;
-            $i++;
-        }
-        $i = 0;
-        if( $files = $request->file('material_img') ){
-            foreach($files as $image){
-                //  get the File Name and Extension
-                $fileNameWithExt = $image->getClientOriginalName();
-                // let get only the file name
-                $fileName = pathinfo($fileNameWithExt, PATHINFO_FILENAME);  
-                // get file extension
-                $fileExt = $image->getClientOriginalExtension();
-                // rename the file
-                $fileNameToStore = $fileName ."_" . time() .".".$fileExt;
     
-                $path = $image->storeAs('public/material_list_images', $fileNameToStore);
-                $prices[$i]->image = $fileNameToStore;
-                $i++;
+        if( $request->file('avatarImage') ){
+
+            if($user->avatarImage)
+            {
+                Storage::delete('public/profile_pictures/'.$user->avatarImage);
             }
+            // get the File Name and Extension
+            $fileNameWithExt = $request->file('avatarImage')->getClientOriginalName();
+            // let get only the file name
+            $fileName = pathinfo($fileNameWithExt, PATHINFO_FILENAME);
+            // get file extension
+            $fileExt = $request->file('avatarImage')->getClientOriginalExtension();
+            // rename the file
+            $fileNameToStore = $fileName ."_" . time() .".".$fileExt;
+
+            $user->avatarImage = $fileNameToStore;
+
+            $request->file('avatarImage')->storeAs('public/profile_pictures', $fileNameToStore);
+
         }
 
-        foreach($prices as $price){
-            $material = new materialPrices;
-            
-            $material->name = $price->name;
-            $material->price = $price->price;
-            $material->image = $price->image;
-            $material->save();
-        }
+        $user->firstName = $request->input('firstName');
+        $user->lastName = $request->input('lastName');
+        $user->email = $request->input('email');
 
-        return response()->json(['message' => 'Material Prices Updated Successfully.'], Response::HTTP_CREATED);
+        $user->save(); 
+
+        $user->userable->update($request->all());
+
+        return response()->json(['Profile Updated Successfully.'], Response::HTTP_CREATED);
+
     }
 
+    public function automatePickup( Request $request ) 
+    {
+        $user = User::find( $request->phone );
+        $user->userable->recoveryAutomated = true;
+        $user->push(); 
+
+        return response()->json(['data' => 'Your recovery has been automated successfully'], Response::HTTP_CREATED);
+    }
+
+    public function unAutomatePickup( Request $request ) 
+    {
+        $user = User::find( $request->phone );
+        $user->userable->recoveryAutomated = false;
+        $user->push(); 
+
+        return response()->json(['data' => 'You have successfully unautomated your pickup'], Response::HTTP_CREATED);
+    }
+
+    public function getUserName(Request $request)
+    {
+        $collector =  User::find( $request->collectorID );
+
+        if ($collector->userable_type != 'App\Collector')
+        {
+            return response()->json(['error' => 'Unauthorised'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        if( $user = User::find( $request->input( 'producerPhone' ) ) )
+        {
+            return response()->json([
+                'Name' => $user->firstName . ' ' .$user->lastName,
+                ], Response::HTTP_OK);
+        }else if( $user = User::where('id', $request->input( 'producerPhone' ))->first() )
+        {
+            return response()->json([
+                'Name' => $user->firstName . ' ' .$user->lastName,
+                ], Response::HTTP_OK);
+        }else 
+        {
+             return response()->json(['Name' => 'Not found'], 404);
+        }
+    }
+
+    public function validateVendorID($id)
+    {
+        return !!User::find($id);
+    }
+
+    public function addRoleToToken()
+    {
+        return auth()->user();
+    }
+
+    public function validateToken($token)
+    {
+        
+        if ( $user = User::where('api_token', $token)->first() )
+        {
+            return true;
+        }
+
+        return false;
+    }
+    
     public function payload( $token )
     {
         $payload = JWTAuth::getPayload($token)->toArray();
@@ -442,7 +573,7 @@ class AuthController extends Controller
     protected function respondWithToken($token)
     {
         $user = auth()->user();
-        $user->remember_token = $token;
+        $user->api_token = $token;
 
         $user->save();
 

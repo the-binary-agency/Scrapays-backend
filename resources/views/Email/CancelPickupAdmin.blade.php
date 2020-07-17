@@ -1,7 +1,7 @@
 @component('mail::message')
-# Notification
+# Pickup Request Cancellation
 
-A pickup request has been issued by <span class="font-weight-bold text-capitalize"> {{ $user->firstName. ' ' .$user->lastName}}. </span> <br>
+<span class="font-weight-bold text-capitalize"> {{ $user->firstName. ' ' .$user->lastName}}. </span> has cancelled their pending pickup request.<br>
 
 <span class="font-weight-bold">Address:</span> {{ $user->address }} <br>
 <span class="font-weight-bold">Pickup Schedule:</span> {{ $pickup->schedule }} <br>

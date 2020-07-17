@@ -9,6 +9,14 @@ use Illuminate\Support\Facades\Storage;
 
 class ListedScrapController extends Controller
 {
+
+    public function __construct()
+    {
+        $this->middleware('auth:api', ['except' => [
+            'list',
+            ]]);
+    }
+
     public function index(){
         $listedscrap = ListedScrap::all();
         return json_encode($listedscrap);
@@ -22,13 +30,13 @@ class ListedScrapController extends Controller
         return json_encode($Scraparray);
     }
 
-    public function store(Request $request){
-
+    public function list(Request $request)
+    {
         $this->validate($request, [
             'firstName' => 'required|string',
             'lastName' => 'required|string',
             'phone' => 'required|string',
-            'email' => 'required|string',
+            'email' => 'required|email',
             'materialImages' => 'required',
             'materialLocation' => 'required|string',
             'materialDescription' => 'required',
@@ -41,7 +49,7 @@ class ListedScrapController extends Controller
             foreach($files as $image){
                 //  get the File Name and Extension
                 $fileNameWithExt = $image->getClientOriginalName();
-                // let get only the file name
+                // get only the file name
                 $fileName = pathinfo($fileNameWithExt, PATHINFO_FILENAME);  
                 // get file extension
                 $fileExt = $image->getClientOriginalExtension();
@@ -61,6 +69,7 @@ class ListedScrapController extends Controller
 
             $listedscrap = new ListedScrap;
             
+            $listedscrap->companyName = $request->input('companyName');
             $listedscrap->firstName = $request->input('firstName');
             $listedscrap->lastName = $request->input('lastName');
             $listedscrap->phone = $request->input('phone');

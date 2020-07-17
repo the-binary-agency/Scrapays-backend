@@ -3,9 +3,8 @@
 namespace App;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 
-class Admin extends Model
+class Agent extends Model
 {
     public function user() 
   { 

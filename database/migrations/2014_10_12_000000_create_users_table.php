@@ -14,29 +14,18 @@ class CreateUsersTable extends Migration
     public function up()
     {
         Schema::create('users', function (Blueprint $table) {
-            $table->string('phone')->primary();
-            $table->string('id', 6);
-            $table->string('avatarImage');
+            $table->string('id', 9);
             $table->string('firstName');
             $table->string('lastName');
-            $table->string('role');
-            $table->string('email')->unique();
+            $table->string('phone')->primary();
+            $table->string('email')->unique()->nullable();
+            $table->string('avatarImage');
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-            $table->string('address')->nullable();
-            $table->string('companyName')->nullable();
-            $table->string('companySize')->nullable();
-            $table->string('industry')->nullable();
-            $table->string('sex')->nullable();
-            $table->string('requestAddress')->nullable();
-            $table->string('hostAddress')->nullable();
-            $table->string('hostDuration')->nullable();
-            $table->string('spaceSize')->nullable();
-            $table->string('hostStartDate')->nullable();
-            $table->string('collectionCoverageZone')->nullable();
-            $table->string('inviteCode')->nullable();
-            $table->boolean('approvedAsCollector')->nullable();
-            $table->boolean('recoveryAutomated')->nullable();
+            $table->string('inviteCode')->nullable();   
+            $table->longText('api_token')->nullable();   
+            $table->integer('userable_id')->nullable();  
+            $table->string('userable_type')->nullable();   
             $table->rememberToken();
             $table->timestamps();
         });

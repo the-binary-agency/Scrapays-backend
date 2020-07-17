@@ -7,16 +7,21 @@ use Illuminate\Support\Str;
 
 class collectedScrap extends Model
 {
-    protected $fillable = ['producerID', 'collectorID', 'vendorID', 'metal', 'aluminium', 'paper', 'plastic', 'others', 'vendorApproved'];
+
+    /**
+     * The attributes that should be hidden for arrays.
+     *
+     * @var array
+     */
+    protected $hidden = [
+        'collectorID', 'producerPhone', 'id', 'created_at', 'updated_at'
+    ];
+
     protected $primaryKey = "id";
 
     public $timestamps = true;
 
     public $incrementing = false;
-
-    protected $attributes = [
-       'vendorApproved' => ''
-    ];
 
     public static function boot()
 {

@@ -7,20 +7,18 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 
-class registerMail extends Mailable
+class RegisterCollectorMail extends Mailable
 {
     use Queueable, SerializesModels;
-
-    public $user;
 
     /**
      * Create a new message instance.
      *
      * @return void
      */
-    public function __construct( $user )
+    public function __construct()
     {
-        $this->user = $user;
+        //
     }
 
     /**
@@ -30,8 +28,6 @@ class registerMail extends Mailable
      */
     public function build()
     {
-        return $this->markdown('Email.registerEnterprise')->with([
-            'user' => $this->user
-            ]);
+        return $this->markdown('Email.ReegisteCollector');
     }
 }
