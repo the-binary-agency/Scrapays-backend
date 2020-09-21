@@ -16,8 +16,12 @@ class CreatePickupRequestsTable extends Migration
         Schema::create('pickup_requests', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->string('userID');
+            $table->string('assignedCollector')->nullable();
             $table->mediumText('address');
+            $table->mediumText('producerName');
             $table->longText('materials');
+            $table->longText('comment')->nullable();
+            $table->longText('description')->nullable();
             $table->longText('schedule');
             $table->string('status');
             $table->timestamps();

@@ -17,6 +17,7 @@ class CreateCollectorsTable extends Migration
             $table->bigIncrements('id');
             $table->string('collectionCoverageZone')->nullable();
             $table->boolean('approvedAsCollector')->nullable();
+            $table->longText('current_loc')->nullable();   
             $table->timestamps();
         });
     }

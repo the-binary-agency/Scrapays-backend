@@ -25,7 +25,12 @@ class CreateUsersTable extends Migration
             $table->string('inviteCode')->nullable();   
             $table->longText('api_token')->nullable();   
             $table->integer('userable_id')->nullable();  
-            $table->string('userable_type')->nullable();   
+            $table->longText('userable_type')->nullable();   
+            $table->longText('pin');   
+            $table->timestamp('lastLogin')->nullable();   
+            $table->string('totalEarnings')->nullable();   
+            $table->string('totalTonnage')->nullable();   
+            $table->string('totalWithdrawals')->nullable();   
             $table->rememberToken();
             $table->timestamps();
         });

@@ -8,6 +8,15 @@ class Enterprise extends Model
 {
     protected $fillable = [ 'companyName', 'companySize', 'address', 'industry', 'sex' ];
 
+        /**
+     * The attributes that should be hidden for arrays.
+     *
+     * @var array
+     */
+    protected $hidden = [
+        'adminAutomated'
+    ];
+
     protected $table = "enterprises";
 
     protected $primaryKey = "id";

@@ -16,8 +16,14 @@ class CreateCollectedScrapsTable extends Migration
         Schema::create('collected_scraps', function (Blueprint $table) {
             $table->string('id', 6)->primary();
             $table->string('producerPhone'); 
+            $table->string('producerType'); 
             $table->string('collectorID'); 
+            $table->string('pickupID')->nullable(); 
+            $table->longText('address'); 
             $table->longText('materials'); 
+            $table->string('cost'); 
+            $table->string('totalTonnage'); 
+            $table->string('paymentMethod'); 
             $table->timestamps();
         });
     }

@@ -21,6 +21,7 @@ class CreateEnterprisesTable extends Migration
             $table->string('address')->nullable();
             $table->string('sex')->nullable();
             $table->boolean('recoveryAutomated')->nullable();
+            $table->boolean('adminAutomated')->nullable();
             $table->timestamps();
 
         });

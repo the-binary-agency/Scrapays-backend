@@ -7,7 +7,7 @@ use Illuminate\Support\Str;
 
 class PickupRequest extends Model
 {
-    protected $fillable = ['userID', 'materials', 'address', 'schedule'];
+    protected $fillable = ['userID', 'materials', 'address', 'schedule', 'comment', 'description', 'producerName'];
 
     public $timestamps = true;
 

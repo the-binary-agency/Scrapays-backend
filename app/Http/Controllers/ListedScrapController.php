@@ -4,30 +4,22 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\ListedScrap;
+use Symfony\Component\HttpFoundation\Response;
 use App\User;
 use Illuminate\Support\Facades\Storage;
 
 class ListedScrapController extends Controller
 {
 
-    public function __construct()
-    {
-        $this->middleware('auth:api', ['except' => [
-            'list',
-            ]]);
-    }
-
     public function index(){
         $listedscrap = ListedScrap::all();
         return json_encode($listedscrap);
     }
 
-    public function getSingleScrap(Request $request){
-        $req = $request->input('id');
-        $Scrap = ListedScrap::find($req);
-        $Scraparray = array();
-        array_push($Scraparray, $Scrap); 
-        return json_encode($Scraparray);
+    public function getSingleScrap($id){
+        $Scrap = ListedScrap::find($id);
+
+        return response()->json((object)['scrap' => $Scrap], Response::HTTP_OK);
     }
 
     public function list(Request $request)

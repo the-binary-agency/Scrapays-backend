@@ -30,24 +30,7 @@ class MaterialPricesController extends Controller
             return response()->json(['error' => 'Unauthorised'], Response::HTTP_UNAUTHORIZED);
         };
 
-        $prices = array();
-        foreach ($request->input('material_name') as $name) {
-           $pricestobesent = (object) [
-                'name' => $name,
-                'price' => '',
-                'image' => ''
-            ];
-            
-            array_push($prices, $pricestobesent);
-        }
-        $i = 0;
-        foreach ($request->input('material_price') as $price) {
-            $prices[$i]->price = $price;
-            $i++;
-        }
-        $i = 0;
-        if( $files = $request->file('material_img') ){
-            foreach($files as $image){
+        if( $image = $request->file('image') ){
                 //  get the File Name and Extension
                 $fileNameWithExt = $image->getClientOriginalName();
                 // let get only the file name
@@ -57,56 +40,39 @@ class MaterialPricesController extends Controller
                 // rename the file
                 $fileNameToStore = $fileName ."_" . time() .".".$fileExt;
     
-                $path = $image->storeAs('public/material_list_images', $fileNameToStore);
-                $prices[$i]->image = $fileNameToStore;
-                $i++;
-            }
+                $image->storeAs('public/material_list_images', $fileNameToStore);
         }
 
-        foreach($prices as $price){
-            $material = new materialPrices();
+            $material = new materialPrices;
             
-            $material->name = $price->name;
-            $material->price = $price->price;
-            $material->image = $price->image;
+            $material->name = $request->input('name');
+            $material->price = $request->input('price');
+            $material->image = $fileNameToStore;
             $material->save();
-        }
 
-        return response()->json(['message' => 'New MMaterial Added Successfully.'], Response::HTTP_CREATED);
+        return response()->json(['message' => 'New Material Added Successfully.'], Response::HTTP_CREATED);
     }
 
     public function editMaterialPrices( Request $request, $id )
     {
+        $this->validate($request, [
+            'id' => 'required|string',
+            'name' => 'required|string',
+            'price' => 'required|string',
+        ]);
+
         $user = User::find($id);
         if ($user->userable_type != 'App\Admin') 
         {
             return response()->json(['error' => 'Unauthorised'], Response::HTTP_UNAUTHORIZED);
         };
 
-        foreach( materialPrices::all() as  $price)
-        {
-            Storage::delete('public/material_list_images/'.$price->$price->image);
-            $price->delete();
-        }
+        $oldMaterial = materialPrices::find($request->input('id'));
 
-        $prices = array();
-        foreach ($request->input('material_name') as $name) {
-           $pricestobesent = (object) [
-                'name' => $name,
-                'price' => '',
-                'image' => ''
-            ];
+        if( $image = $request->file('image') ){
             
-            array_push($prices, $pricestobesent);
-        }
-        $i = 0;
-        foreach ($request->input('material_price') as $price) {
-            $prices[$i]->price = $price;
-            $i++;
-        }
-        $i = 0;
-        if( $files = $request->file('material_img') ){
-            foreach($files as $image){
+                Storage::delete('public/material_list_images/'.$oldMaterial->image);
+
                 //  get the File Name and Extension
                 $fileNameWithExt = $image->getClientOriginalName();
                 // let get only the file name
@@ -116,22 +82,40 @@ class MaterialPricesController extends Controller
                 // rename the file
                 $fileNameToStore = $fileName ."_" . time() .".".$fileExt;
     
-                $path = $image->storeAs('public/material_list_images', $fileNameToStore);
-                $prices[$i]->image = $fileNameToStore;
-                $i++;
+                $image->storeAs('public/material_list_images', $fileNameToStore);
+                $oldMaterial->image = $fileNameToStore;
             }
-        }
-
-        foreach($prices as $price){
-            $material = new materialPrices();
             
-            $material->name = $price->name;
-            $material->price = $price->price;
-            $material->image = $price->image;
-            $material->save();
-        }
+            $oldMaterial->name = $request->input('name');
+            $oldMaterial->price = $request->input('price');
+            $oldMaterial->save();
 
-        return response()->json(['message' => 'Material Prices Updated Successfully.'], Response::HTTP_CREATED);
+        return response()->json(['message' => 'Material Price Updated Successfully.'], Response::HTTP_CREATED);
+    }
+
+    public function deleteMaterialPrices( Request $request, $id )
+    {
+        $this->validate($request, [
+            'id' => 'required|string',
+            'name' => 'required|string',
+            'price' => 'required|string',
+        ]);
+
+        $user = User::find($id);
+        if ($user->userable_type != 'App\Admin') 
+        {
+            return response()->json(['error' => 'Unauthorised'], Response::HTTP_UNAUTHORIZED);
+        };
+
+        $oldMaterial = materialPrices::find($request->input('id'));
+
+        if( $oldMaterial->image ){
+            Storage::delete('public/material_list_images/'.$oldMaterial->image);
+        }
+            
+        $oldMaterial->delete();
+
+        return response()->json(['message' => 'Material Deleted Successfully.'], Response::HTTP_CREATED);
     }
 
 }

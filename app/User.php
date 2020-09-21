@@ -9,10 +9,13 @@ use Illuminate\Notifications\Notifiable;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Bavix\Wallet\Traits\HasWallet;
+use Bavix\Wallet\Interfaces\Wallet;
 
 class User extends Authenticatable implements JWTSubject
 {
     use Notifiable;
+    // use HasWallet;
 
     /**
      * The attributes that are mass assignable.
@@ -35,7 +38,7 @@ class User extends Authenticatable implements JWTSubject
      * @var array
      */
     protected $hidden = [
-        'password', 'remember_token', 'userable_id'
+        'password', 'remember_token', 'userable_id', 'pin', 'updated_at', 'inviteCode', 'email_verified_at', 'api_token'
     ];
 
     protected $attributes = [
