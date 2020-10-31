@@ -4,7 +4,7 @@
 You canceled your pending pickup request. Our Collectors will no longer be contacting you regarding this request. <br>
 
 Below are the collection details ; <br>
-<span class="font-weight-bold"> Name: </span> <span class="text-capitalize"> {{ $user->firstName. ' ' .$user->lastName}} </span> <br>
+<span class="font-weight-bold"> Name: </span> <span class="text-capitalize"> {{ $user->first_name. ' ' .$user->last_name}} </span> <br>
 <span class="font-weight-bold">Address:</span> {{ $user->address }} <br>
 <span class="font-weight-bold">Pickup Schedule:</span> {{ $pickup->schedule }} <br>
 <span class="font-weight-bold">Material Categories:</span>

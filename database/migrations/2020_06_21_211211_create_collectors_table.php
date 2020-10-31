@@ -15,10 +15,12 @@ class CreateCollectorsTable extends Migration
     {
         Schema::create('collectors', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->string('collectionCoverageZone')->nullable();
-            $table->boolean('approvedAsCollector')->nullable();
-            $table->longText('current_loc')->nullable();   
+            $table->string('collection_coverage_zone')->nullable();
+            $table->boolean('approved_as_collector')->nullable();
+            $table->longText('current_location')->nullable();
             $table->timestamps();
+            $table->softDeletes();
+
         });
     }
 

@@ -1,1 +1,169 @@
-ng";s:9:"pdf_pages";s:14:"pma__pdf_pages";s:6:"recent";s:11:"pma__recent";s:8:"relation";s:13:"pma__relation";s:13:"savedsearches";s:18:"pma__savedsearches";s:12:"table_coords";s:17:"pma__table_coords";s:10:"table_info";s:15:"pma__table_info";s:13:"table_uiprefs";s:18:"pma__table_uiprefs";s:8:"tracking";s:13:"pma__tracking";s:10:"userconfig";s:15:"pma__userconfig";s:10:"usergroups";s:15:"pma__usergroups";s:5:"users";s:10:"pma__users";}}cache|a:2:{s:8:"server_1";a:4:{s:9:"userprefs";a:1:{s:20:"collation_connection";s:18:"utf8mb4_unicode_ci";}s:15:"userprefs_mtime";s:10:"1583674016";s:14:"userprefs_type";s:2:"db";s:12:"config_mtime";i:1520264233;}s:13:"server_1_root";a:18:{s:12:"is_superuser";b:1;s:14:"mysql_cur_user";s:14:"root@localhost";s:17:"is_create_db_priv";b:1;s:14:"is_reload_priv";b:1;s:12:"db_to_create";s:0:"";s:30:"dbs_where_create_table_allowed";a:1:{i:0;s:1:"*";}s:11:"dbs_to_test";b:0;s:9:"proc_priv";b:1;s:10:"table_priv";b:1;s:8:"col_priv";b:1;s:7:"db_priv";b:1;s:19:"profiling_supported";b:1;s:12:"is_grantuser";b:1;s:17:"menu-levels-table";a:11:{s:6:"browse";s:6:"Browse";s:9:"structure";s:9:"Structure";s:3:"sql";s:3:"SQL";s:6:"search";s:6:"Search";s:6:"insert";s:6:"Insert";s:6:"export";s:6:"Export";s:6:"import";s:6:"Import";s:10:"privileges";s:10:"Privileges";s:9:"operation";s:10:"Operations";s:8:"tracking";s:8:"Tracking";s:8:"triggers";s:8:"Triggers";}s:11:"binary_logs";a:0:{}s:18:"menu-levels-server";a:13:{s:9:"databases";s:9:"Databases";s:3:"sql";s:3:"SQL";s:6:"status";s:6:"Status";s:6:"rights";s:5:"Users";s:6:"export";s:6:"Export";s:6:"import";s:6:"Import";s:8:"settings";s:8:"Settings";s:6:"binlog";s:10:"Binary log";s:11:"replication";s:11:"Replication";s:4:"vars";s:9:"Variables";s:7:"charset";s:8:"Charsets";s:7:"plugins";s:7:"Plugins";s:6:"engine";s:7:"Engines";}s:14:"menu-levels-db";a:14:{s:9:"structure";s:9:"Structure";s:3:"sql";s:3:"SQL";s:6:"search";s:6:"Search";s:3:"qbe";s:5:"Query";s:6:"export"
+<?php
+
+namespace App\Http\Controllers\Auth;
+
+use App\Admin;
+use App\Agent;
+use App\Collector;
+use App\Enterprise;
+use App\Host;
+use App\Household;
+use App\Http\Controllers\ApiController;
+use App\Http\Requests\SignUpRequest;
+use App\User;
+use Illuminate\Http\Request;
+
+class RegisterController extends ApiController
+{
+    public function admin(SignUpRequest $request)
+    {
+        $superAdmin = User::find($request->input('super_admin'));
+        if (!$superAdmin || $superAdmin->userable_type != 'Admin') {
+            return $this->errorResponse('Only the super admin can ceate more admins.', 422);
+        }
+
+        $res = $this->saveUser($request);
+
+        if ($res->error) {
+            return $this->errorResponse($res->error, 422);
+        } else {
+            $admin              = new Admin();
+            $admin->permissions = json_encode($request->input('permissions'));
+            $admin->save();
+
+            $admin->user()->save($res->user);
+
+            return $this->successResponse('You have successfully created a new Admin.', 201, true);
+        }
+    }
+
+    public function enterprise(SignUpRequest $request)
+    {
+        $res = $this->saveUser($request);
+
+        if ($res->error) {
+            return $this->errorResponse($res->error, 422);
+        } else {
+            $enterprise                     = new Enterprise();
+            $enterprise->company_name       = $request->company_name;
+            $enterprise->company_size       = $request->company_size;
+            $enterprise->industry           = $request->industry;
+            $enterprise->gender             = $request->gender;
+            $enterprise->recovery_automated = false;
+            $enterprise->save();
+
+            $enterprise->user()->save($res->user);
+
+            return $this->sendSignupMail($request, 'Enterprise');
+        }
+    }
+
+    public function ussd(Request $request)
+    {
+        $this->validate($request, [
+            'first_name' => 'required',
+            'last_name'  => 'required',
+            'phone'      => 'required|unique:users',
+            'pin'        => 'required'
+        ]);
+
+        $request->password = '123456';
+        $request->email    = null;
+
+        $res = $this->saveUser($request);
+
+        if ($res->error) {
+            return $this->errorResponse($res->error, 422);
+        } else {
+            $household                  = new Household();
+            $household->request_address = null;
+            $household->save();
+
+            $household->user()->save($res->user);
+
+            return $this->successResponse('Household Account created successfully.', 201, true);
+        }
+    }
+
+    public function household(SignupRequest $request)
+    {
+        $this->validate($request, [
+            'request_address' => 'required'
+        ]);
+
+        $res = $this->saveUser($request);
+
+        if ($res->error) {
+            return $this->errorResponse($res->error, 422);
+        } else {
+            $household                  = new Household();
+            $household->request_address = $request->request_address;
+            $household->save();
+
+            $household->user()->save($res->user);
+
+            return $this->sendSignupMail($request, 'Household');
+        }
+
+    }
+
+    public function host(SignUpRequest $request)
+    {
+
+        $res = $this->saveUser($request);
+
+        if ($res->error) {
+            return $this->errorResponse($res->error, 422);
+        } else {
+            $host                  = new Host();
+            $host->host_address    = $request->host_address;
+            $host->space_size      = $request->space_size;
+            $host->host_duration   = $request->host_duration;
+            $host->host_start_date = $request->host_start_date;
+            $host->save();
+
+            $host->user()->save($res->user);
+
+            return $this->sendSignupMail($request, 'Host');
+        }
+
+    }
+
+    public function collector(SignUpRequest $request)
+    {
+
+        $res = $this->saveUser($request);
+
+        if ($res->error) {
+            return $this->errorResponse($res->error, 422);
+        } else {
+            $collector                           = new Collector();
+            $collector->collection_coverage_zone = $request->collection_coverage_zone;
+            $collector->approvedAsCollector      = false;
+            $collector->save();
+
+            $collector->user()->save($res->user);
+
+            return $this->sendSignupMail($request, 'Collector');
+        }
+    }
+
+    public function agent(SignUpRequest $request)
+    {
+
+        $res = $this->saveUser($request);
+
+        if ($res->error) {
+            return $this->errorResponse($res->error, 422);
+        } else {
+            $agent                        = new Agent();
+            $agent->collectorCoverageZone = $request->collectorCoverageZone;
+            $agent->approvedAsCollector   = $request->approvedAsCollector;
+            $agent->save();
+
+            $agent->user()->save($res->user);
+
+            return $this->sendSignupMail($request, 'Agent');
+        }
+    }
+}

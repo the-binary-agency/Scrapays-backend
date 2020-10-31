@@ -21,5 +21,5 @@
 // Route::get('/importlocationdata', function () {
 //     return view('LocationData.location');
 // });
-Route::get('/importlocationdata', 'LocationDataController@import');
-Route::post('/uplooadlocationdata', 'LocationDataController@upload');
+// Route::get('/importlocationdata', 'LocationDataController@import');
+// Route::post('/uplooadlocationdata', 'LocationDataController@upload');

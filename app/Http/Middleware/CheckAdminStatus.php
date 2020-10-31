@@ -2,11 +2,15 @@
 
 namespace App\Http\Middleware;
 
+use App\Traits\ApiResponse;
+use App\User;
 use Closure;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Auth\Middleware\Authenticate as Middleware;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
-class CheckAdminStatus
+class CheckAdminStatus extends Middleware
 {
+    use ApiResponse;
     /**
      * Handle an incoming request.
      *
@@ -14,14 +18,28 @@ class CheckAdminStatus
      * @param  \Closure  $next
      * @return mixed
      */
-    public function handle($request, Closure $next)
+    public function handle($request, Closure $next, ...$guards)
     {
-        $user = DB::table('users')->where('api_token', $request->bearerToken());
+        $user = null;
+        try {
+            $token          = JWTAuth::getToken();
+            $payload        = $this->getPayload($token);
+            $user           = User::find($payload['id']);
+            $request->admin = $user;
 
-        if ($user->userable_type  != 'App\Admin')
-        {
-            return route('unauthenticated');
+        } catch (\Throwable $e) {
+            return $this->errorResponse($e->getMessage(), 401);
+        }
+
+        if ($user->userable_type != 'Admin') {
+            return $this->errorResponse('Not authorized to access this route.', 401);
         }
         return $next($request);
+    }
+
+    private function getPayload($token)
+    {
+        $payload = JWTAuth::getPayload($token)->toArray();
+        return $payload;
     }
 }

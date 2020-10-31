@@ -1,7 +1,7 @@
 @component('mail::message')
 # Successful Registration
 
-Welcome to Scrapays for Household Mr./Mrs. {{ $user->lastName }}
+Welcome to Scrapays for Household Mr./Mrs. {{ $user->last_name }}
 
 We’re thrilled that you’ve decided to join us today and make us your recyclable waste offtake partner.
 

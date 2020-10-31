@@ -1,7 +1,7 @@
 @component('mail::message')
 # Successful Registration
 
-Welcome to Scrapays for Enterprise {{ $user->companyName }}
+Welcome to Scrapays for Enterprise {{ $user->company_name }}
 
 We’re thrilled that you’ve decided to join us today and make us your recyclable waste offtake partner.
 

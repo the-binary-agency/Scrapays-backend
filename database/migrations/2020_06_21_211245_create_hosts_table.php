@@ -15,11 +15,13 @@ class CreateHostsTable extends Migration
     {
         Schema::create('hosts', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->string('hostAddress')->nullable();
-            $table->string('hostDuration')->nullable();
-            $table->string('spaceSize')->nullable();
-            $table->string('hostStartDate')->nullable();
+            $table->string('hosting_address')->nullable();
+            $table->string('hosting_duration')->nullable();
+            $table->string('space_size')->nullable();
+            $table->string('hosting_start_date')->nullable();
             $table->timestamps();
+            $table->softDeletes();
+
         });
     }
 

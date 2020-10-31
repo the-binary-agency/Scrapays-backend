@@ -2,29 +2,43 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Http\Controllers\Controller;
-use App\Providers\RouteServiceProvider;
-use Illuminate\Foundation\Auth\ResetsPasswords;
+use App\Http\Controllers\ApiController;
+use App\Http\Requests\ChangePasswordRequest;
+use App\User;
+use Illuminate\Support\Facades\DB;
 
-class ResetPasswordController extends Controller
+class ResetPasswordController extends ApiController
 {
-    /*
-    |--------------------------------------------------------------------------
-    | Password Reset Controller
-    |--------------------------------------------------------------------------
-    |
-    | This controller is responsible for handling password reset requests
-    | and uses a simple trait to include this behavior. You're free to
-    | explore this trait and override any methods you wish to tweak.
-    |
-    */
+    public function process(ChangePasswordRequest $request)
+    {
+        return $this->getPasswordResetTableRow($request)->count() > 0 ? $this->changePassword($request) : $this->tokenNotFoundResponse();
+    }
 
-    use ResetsPasswords;
+    private function getPasswordResetTableRow($request)
+    {
+        return DB::table('password_resets')->where([
+            'email' => $request->email,
+            'token' => $request->resetToken
+        ]);
+    }
 
-    /**
-     * Where to redirect users after resetting their password.
-     *
-     * @var string
-     */
-    protected $redirectTo = RouteServiceProvider::HOME;
+    private function changePassword($request)
+    {
+        $user = User::whereEmail($request->email)->first();
+        $user->update(['password' => $request->password]);
+        $this->getPasswordResetTableRow($request)->delete();
+
+        return $this->passwordChangedResponse();
+    }
+
+    private function passwordChangedResponse()
+    {
+        return $this->successResponse('Password Successfully Changed.', 201);
+    }
+
+    private function tokenNotFoundResponse()
+    {
+        return $this->errorResponse('Email or Token is invalid.', 422);
+    }
+
 }

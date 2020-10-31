@@ -15,16 +15,19 @@ class CreatePickupRequestsTable extends Migration
     {
         Schema::create('pickup_requests', function (Blueprint $table) {
             $table->string('id')->primary();
-            $table->string('userID');
-            $table->string('assignedCollector')->nullable();
+            $table->string('producer_id');
+            $table->string('assigned_collector')->nullable();
             $table->mediumText('address');
-            $table->mediumText('producerName');
+            $table->mediumText('producer_name');
             $table->longText('materials');
             $table->longText('comment')->nullable();
             $table->longText('description')->nullable();
             $table->longText('schedule');
             $table->string('status');
             $table->timestamps();
+            $table->softDeletes();
+
+            $table->foreign('producer_id')->references('id')->on('users');
         });
     }
 

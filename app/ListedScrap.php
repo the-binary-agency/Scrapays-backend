@@ -7,7 +7,16 @@ use Illuminate\Support\Str;
 
 class ListedScrap extends Model
 {
-    protected $fillable = ['firstName', 'lastName', 'phone', 'email', 'materialImages', 'materialLocation','materialDescription'];
+    protected $fillable = [
+        'first_name',
+        'last_name',
+        'phone',
+        'email',
+        'material_images',
+        'material_location',
+        'material_description'
+    ];
+
     protected $primaryKey = "id";
 
     public $timestamps = true;
@@ -15,11 +24,11 @@ class ListedScrap extends Model
     public $incrementing = false;
 
     public static function boot()
-{
-    parent::boot();
+    {
+        parent::boot();
 
-    static::creating(function ($listedscrap) {
-        $listedscrap->id = strtoupper(Str::random(6));
-    });
-}
+        static::creating(function ($listedscrap) {
+            $listedscrap->id = strtoupper(Str::random(6));
+        });
+    }
 }

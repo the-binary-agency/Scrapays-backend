@@ -15,14 +15,15 @@ class CreateEnterprisesTable extends Migration
     {
         Schema::create('enterprises', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->string('companyName')->nullable();
-            $table->string('companySize')->nullable();
+            $table->string('company_name')->nullable();
+            $table->string('company_size')->nullable();
             $table->string('industry')->nullable();
             $table->string('address')->nullable();
-            $table->string('sex')->nullable();
-            $table->boolean('recoveryAutomated')->nullable();
-            $table->boolean('adminAutomated')->nullable();
+            $table->string('gender')->nullable();
+            $table->boolean('recovery_automated')->nullable();
+            $table->boolean('admin_automated')->nullable();
             $table->timestamps();
+            $table->softDeletes();
 
         });
     }

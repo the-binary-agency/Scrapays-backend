@@ -7,7 +7,13 @@ use Illuminate\Support\Str;
 
 class ContactMessage extends Model
 {
-   protected $fillable = ['name', 'email', 'contact', 'message'];
+    protected $fillable = [
+        'name',
+        'email',
+        'contact',
+        'message'
+    ];
+
     protected $primaryKey = "id";
 
     public $timestamps = true;
@@ -15,11 +21,11 @@ class ContactMessage extends Model
     public $incrementing = false;
 
     public static function boot()
-{
-    parent::boot();
+    {
+        parent::boot();
 
-    static::creating(function ($contactmessage) {
-        $contactmessage->id = strtoupper(Str::random(6));
-    });
-}
+        static::creating(function ($contactmessage) {
+            $contactmessage->id = strtoupper(Str::random(6));
+        });
+    }
 }

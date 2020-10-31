@@ -3,19 +3,30 @@
 namespace App;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Enterprise extends Model
 {
-    protected $fillable = [ 'companyName', 'companySize', 'address', 'industry', 'sex' ];
+    use SoftDeletes;
 
-        /**
+    protected $fillable = [
+        'company_name',
+        'company_size',
+        'address',
+        'industry',
+        'gender'
+    ];
+
+    /**
      * The attributes that should be hidden for arrays.
      *
      * @var array
      */
     protected $hidden = [
-        'adminAutomated'
+        'admin_automated'
     ];
+
+    protected $dates = ['deleted_at'];
 
     protected $table = "enterprises";
 
@@ -23,8 +34,9 @@ class Enterprise extends Model
 
     public $timestamps = true;
 
-    public function user() 
-  { 
-    return $this->morphOne('App\User', 'userable');
-  }
+    public function user()
+    {
+        return $this->morphOne('App\User', 'userable');
+    }
+
 }

@@ -15,14 +15,14 @@ class CreateListedScrapsTable extends Migration
     {
         Schema::create('listed_scraps', function (Blueprint $table) {
             $table->string('id', 6)->primary();
-            $table->string('companyName'); 
-            $table->string('firstName'); 
-            $table->string('lastName'); 
-            $table->string('phone'); 
-            $table->string('email'); 
-            $table->string('materialImages'); 
-            $table->text('materialLocation'); 
-            $table->text('materialDescription');
+            $table->string('company_name');
+            $table->string('first_name');
+            $table->string('last_name');
+            $table->string('phone');
+            $table->string('email');
+            $table->string('material_images');
+            $table->text('material_location');
+            $table->text('material_description');
             $table->timestamps();
         });
     }

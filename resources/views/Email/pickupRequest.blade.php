@@ -1,7 +1,7 @@
 @component('mail::message')
 # Notification
 
-A pickup request has been issued by <span class="font-weight-bold text-capitalize"> {{ $user->firstName. ' ' .$user->lastName}}. </span> <br>
+A pickup request has been issued by <span class="font-weight-bold text-capitalize"> {{ $user->first_name. ' ' .$user->last_name}}. </span> <br>
 
 <span class="font-weight-bold">Address:</span> {{ $user->address }} <br>
 <span class="font-weight-bold">Pickup Schedule:</span> {{ $pickup->schedule }} <br>

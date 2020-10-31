@@ -15,12 +15,16 @@ class CreateInventories extends Migration
     {
         Schema::create('inventories', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->string('enterpriseID');
+            $table->string('enterprise_id');
+            $table->string('enterprise_phone');
             $table->string('material');
             $table->string('volume');
-            $table->string('revenueGenerated');
+            $table->string('revenue_generated');
             $table->string('receipt');
             $table->timestamps();
+            $table->softDeletes();
+
+            $table->foreign('enterprise_id')->references('id')->on('users');
         });
     }
 

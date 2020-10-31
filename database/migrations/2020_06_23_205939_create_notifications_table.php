@@ -19,6 +19,9 @@ class CreateNotificationsTable extends Migration
             $table->longText('notification_body');
             $table->boolean('read')->default(false);
             $table->timestamps();
+            $table->softDeletes();
+
+            $table->foreign('user_id')->references('id')->on('users');
         });
     }
 

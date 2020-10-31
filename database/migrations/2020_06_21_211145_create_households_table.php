@@ -15,8 +15,10 @@ class CreateHouseholdsTable extends Migration
     {
         Schema::create('households', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->string('requestAddress')->nullable();
+            $table->string('request_address')->nullable();
             $table->timestamps();
+            $table->softDeletes();
+
         });
     }
 

@@ -1,108 +1,312 @@
 <?php
 use Illuminate\Support\Facades\Route;
 
-Route::get('unauthenticated', 'AuthController@unauthenticated')->name('unauthenticated');
+/**
+ * Public Routes
+ */
+// send Contact Message
+Route::post('contactmessages/send', 'ContactMessageController@store');
 
-Route::post('registerAdmin', 'AuthController@registerAdmin');
+Route::post('refactor', 'UserController@refactor');
 
-Route::post('loginwithphone', 'AuthController@loginWithPhone');
-Route::post('loginwithemail', 'AuthController@loginWithEmail');
-Route::post('registerwithussd', 'AuthController@registerwithussd');
-Route::post('registerEnterprise', 'AuthController@registerEnterprise');
-Route::post('registerHousehold', 'AuthController@registerHousehold');
-Route::post('registerHost', 'AuthController@registerHost');
-Route::post('registerCollector', 'AuthController@registerCollector');
-Route::post('registerAgent', 'AuthController@registerAgent');
-Route::post('refresh', 'AuthController@refresh');
-Route::post('me', 'AuthController@me');
-Route::post('sendPasswordResetLink', 'ResetPasswordController@sendEmail');
-Route::post('resetPassword', 'ChangePasswordController@process');
-Route::post('sendContactMessage', 'ContactMessageController@send');
-
+/**
+ * Public Auth
+ */
 Route::group([
 
-    'middleware' => 'auth:api',
+    'prefix' => 'auth'
 
 ], function () {
 
-    // Users
-    Route::post('updateUser/{id}', 'AuthController@updateUser');
-    Route::post('updateUssdUser/{id}', 'AuthController@updateUssdUser');
-    Route::post('getUserWithID', 'AuthController@getUserWithID');
-    Route::get('getUserDetails/{id}', 'AuthController@getUserDetails');
-    Route::post('getAllUsers', 'AuthController@getUsers');
-    Route::get('getAllAdmins', 'AuthController@getAdmins');
-    Route::get('getUserWithTonnage/{id}', 'AuthController@getUserWithTonnage');
-    Route::get('getUserWithNotifications/{id}', 'AuthController@getUserWithNotifications');
-    Route::get('getCollectorWithTonnage/{id}', 'AuthController@getCollectorWithTonnage');
-    Route::post('getUserName', 'AuthController@getUserName');
-    Route::post('toggleCollectorStatus', 'AuthController@toggleCollectorStatus');
-    Route::post('deleteUser', 'AuthController@deleteUser');
-    Route::get('getProducedTonnage/{id}', 'AuthController@getProducedTonnage');
-    Route::get('getDisposedTonnage/{id}', 'AuthController@getDisposedTonnage');
-    Route::get('getMaterialsSalesHistory/{id}', 'AuthController@getMaterialsSalesHistory');
-    Route::get('getUserCount/{id}', 'AuthController@getUserCount');
-    Route::post('registerVendor', 'AuthController@registerVendor');
-    Route::get('getApprovedCollectors/{id}', 'AuthController@getApprovedCollectors');
-    Route::post('approveCollector', 'AuthController@approveCollector');
+    /**
+     * Register Admin
+     */
+    Route::post('admins/register', 'Auth\RegisterController@admin');
+    /**
+     * Register Household
+     */
+    Route::post('households/register', 'Auth\RegisterController@household');
+    /**
+     * Register USSD
+     */
+    Route::post('ussd/register', 'Auth\RegisterController@ussd');
+    /**
+     * Register Enterprise
+     */
+    Route::post('enterprises/register', 'Auth\RegisterController@enterprise');
+    /**
+     * Register Collector
+     */
+    Route::post('collectors/register', 'Auth\RegisterController@collector');
+    /**
+     * Register Host
+     */
+    Route::post('hosts/register', 'Auth\RegisterController@host');
 
-    // Material Prices
-    Route::get('getMaterialPrices/{id}', 'MaterialPricesController@getMaterialPrices');
-    Route::post('setMaterialPrices/{id}', 'MaterialPricesController@setMaterialPrices');
-    Route::post('editMaterialPrices/{id}', 'MaterialPricesController@editMaterialPrices');
-    Route::post('deleteMaterialPrices/{id}', 'MaterialPricesController@deleteMaterialPrices');
+    /**
+     * Login with email
+     */
+    Route::post('email/login', 'Auth\LoginController@email');
+    /**
+     * Login with phone number
+     */
+    Route::post('phone/login', 'Auth\LoginController@phone');
+    /**
+     * Login with USSD
+     */
+    Route::post('ussd/login', 'Auth\LoginController@ussd');
 
-    Route::post('automatePickup', 'AuthController@automatePickup');
-    Route::post('unAutomatePickup', 'AuthController@unAutomatePickup');
+    /**
+     * Send password reset email
+     */
+    Route::post('password/email', 'Auth\ForgotPasswordController@sendEmail');
+    /**
+     * Reset password
+     */
+    Route::post('password/reset', 'Auth\ResetPasswordController@process');
+});
 
-    // Pickup Requests
-    Route::post('requestPickup', 'requestPickupController@initiateRequest');
-    Route::post('requestUssdPickup', 'requestPickupController@initiateUssdRequest');
-    Route::post('cancelPickup', 'requestPickupController@cancelPickup');
-    Route::get('getAllPickupRequests/{id}', 'requestPickupController@getAllPickupRequests');
-    Route::get('getPickupRequestCounts/{id}', 'requestPickupController@getPickupRequestCounts');
-    Route::post('getCollectorWithLog', 'requestPickupController@getCollectorWithLog');
-    Route::post('assignToCollector', 'requestPickupController@assignToCollector');
-    Route::get('getAssignedRequests/{id}', 'requestPickupController@getAssignedPickups');
+/**
+ * Private Routes
+ */
+Route::group([
 
-    // ListedScrap routes
-    Route::get('getAllUsers', 'ListedScrapController@getUsers');
-    Route::get('getSingleScrap/{id}', 'ListedScrapController@getSingleScrap');
-    Route::get('listedscrap', 'ListedScrapController@index');
+    'middleware' => 'auth'
 
-    Route::post('listCollectedScrap', 'CollectedScrapController@listCollectedScrap');
-    Route::get('getCollectorCollections/{id}', 'CollectedScrapController@getCollectorCollections');
-    Route::get('getCollections/{id}', 'CollectedScrapController@getCollections');
-    Route::get('getCollectionsHistory', 'CollectedScrapController@getHistory');
-    Route::get('getCollectorCollectionsHistory/{id}', 'CollectedScrapController@getCollectorCollectionsHistory');
-    Route::get('getProducerCollectionsHistory/{id}', 'CollectedScrapController@getProducerCollectionsHistory');
-    Route::get('getCollectionsHistoryWithQuery/{id}', 'CollectedScrapController@getCollectionsHistoryWithQuery');
-    Route::get('getCollectorCollectionsHistoryWithQuery/{id}', 'CollectedScrapController@getCollectorCollectionsHistoryWithQuery');
-    Route::post('listScrap', 'ListedScrapController@list');
+], function () {
 
+    /**
+     * Private Auth
+     */
+    Route::group([
 
-    // Notifications
-    Route::post('toggleNotifications', 'NotificationController@toggleNotifications');
-    Route::post('deleteNotifications', 'NotificationController@deleteNotifications');
+        'prefix' => 'auth'
 
-    // Inventory
-    Route::post('submitInventory', 'InventoryController@submitInventory');
-    Route::post('getUserInventory', 'InventoryController@getUserInventory');
+    ], function () {
+        /**
+         * Users
+         */
+        Route::get('users/{user}/notifications', 'UserController@getNotifications');
 
-    // Wallet
-    Route::get('getwalletbalance/{id}', 'WalletController@getWalletBalance');
-    Route::get('getwallethistory/{id}', 'WalletController@getWalletHistory');
-    Route::post('withdrawfromwallet', 'WalletController@withdrawFromWallet');
-    Route::post('creditwallet', 'WalletController@creditWallet');
-    Route::get('buyAirtime', 'WalletController@buyAirtime');
+        /**
+         * Admin
+         */
+        //  Get logged in admin
+        Route::get('admins/me', 'Auth\AdminAuthController@me')->middleware(['admin']);
+        // Update Admin
+        Route::put('admins/{admin}', 'Auth\AdminAuthController@update')->middleware(['admin']);
 
-    // Location
-    Route::get('getlocations', 'LocationDataController@getLocations');
-    Route::post('ping', 'MapDataController@ping');
-    Route::get('getAddressWithCoordinates/{loc}', 'MapDataController@getAddressWithCoordinates');
+        /**
+         * Hosehold
+         */
+        // Get logged in Household
+        Route::get('households/me', 'Auth\HouseholdAuthController@me');
+        // Update Household
+        Route::put('households/{household}', 'Auth\HouseholdAuthController@update');
+        // Update Household through USSD
+        Route::put('households/ussd/{phone}', 'Auth\HouseholdAuthController@updateUSSD');
 
-    // Messages  
-    Route::get('getAllContactMessages', 'ContactMessageController@get');
-    Route::post('replyContactMessage', 'ContactMessageController@reply');
-    Route::delete('deleteContactMessage/{id}', 'ContactMessageController@delete');
+        /**
+         * Enterprise
+         */
+        // Get logged in Enterprise
+        Route::get('enterprises/me', 'Auth\EnterpriseAuthController@me');
+        //  Update Enterprise
+        Route::put('enterprises/{enterprise}', 'Auth\EnterpriseAuthController@update');
+        //  Automate Enterprise Pickup
+        Route::put('enterprises/pickup/{enterprise}/automate', 'Auth\EnterpriseAuthController@automatePickup');
+        //  Unautomate Enterprise Pickup
+        Route::put('enterprises/pickup/{enterprise}/unautomate', 'Auth\EnterpriseAuthController@unAutomatePickup');
+
+        /**
+         * Collector
+         */
+        // Get logged in Collector
+        Route::get('collectors/me', 'Auth\CollectorAuthController@me');
+        //  Update Collector
+        Route::put('collectors/{collector}', 'Auth\CollectorAuthController@update');
+
+        /**
+         * Host
+         */
+        // Get logged in Host
+        Route::get('hosts/me', 'Auth\HostAuthController@me');
+        //  Update Host
+        Route::put('hosts/{host}', 'Auth\HostAuthController@update');
+    });
+
+    /**
+     * Location
+     */
+    // Ping Collector Location
+    Route::post('locations/ping', 'LocationController@ping');
+    // Get collection address with coordinates
+    Route::get('locations/address', 'LocationController@getAddressWithCoordinates');
+
+    /**
+     * Users
+     */
+    //  Search for User with phone number or ID
+    Route::get('users/{phone}/name', 'UserController@getUserName');
+
+    /**
+     * Pickup Requests
+     */
+    Route::get('pickuprequests/{enterprise}/cancel', 'PickupRequestController@cancel');
+
+    /**
+     * Wallets
+     */
+    Route::get('wallets/{user}/balance', 'WalletController@balance');
+    Route::post('wallets/withdraw', 'WalletController@withdraw');
+    Route::post('wallets/transfer', 'WalletController@transfer');
+    Route::post('wallets/airtime', 'WalletController@airtime');
+
+    /**
+     * Enterprises
+     */
+    // Get enterprise produced scrap
+    Route::get('enterprises/{enterprise}/producedscraps', 'EnterpriseController@producedScrap');
+
+    /**
+     * Households
+     */
+    // Get household produced scrap
+    Route::get('households/{household}/producedscraps', 'HouseholdController@producedScrap');
+
+    /**
+     * Collectors
+     */
+    // Get collector Collected scrap
+    Route::get('collectors/{collector}/collectedscraps', 'CollectorController@collectedScrap');
+    // Get collector assigned pickups
+    Route::get('collectors/{collector}/pickuprequests', 'CollectorController@pickupRequests');
+
+    /**
+     * Collectedscraps
+     */
+    // Get all collectedscrap history
+    Route::get('collectedscraps/history', 'CollectedScrapController@getAllScrapHistory');
+    // Get produced tonnage
+    Route::get('collectedscraps/{producer}/producedtonnage', 'CollectedScrapController@producedTonnage');
+    // Get collected tonnage
+    Route::get('collectedscraps/{collector}/collectedtonnage', 'CollectedScrapController@collectedTonnage');
+    // Get a single user's scrap history
+    Route::get('collectedscraps/{user}/history', 'UserController@getSingleScrapHistory');
+
+    /**
+     * Materials
+     */
+    // Get materials
+    Route::get('materials', 'MaterialController@index');
+
+    /**
+     * Collected Scraps
+     */
+    //  List
+    Route::post('collectedscraps', 'CollectedScrapController@store');
+
+    /**
+     * Pickup Requests
+     */
+    Route::resource('pickuprequests', 'PickupRequestController', ['only' => ['store', 'index']]);
+    // Request a pickup through USSD
+    Route::post('pickuprequests/ussd', 'PickupRequestController@storeUssdPickup');
+
+    /**
+     * Inventories
+     */
+    Route::resource('inventories', 'InventoryController', ['only' => ['store']]);
+
+    /**
+     * Admin-Only
+     */
+    Route::group([
+
+        'middleware' => 'authorize'
+
+    ], function () {
+
+        /**
+         * Users
+         */
+        Route::get('users/count', 'UserController@getUserCount');
+        Route::resource('users', 'UserController', ['only' => ['index', 'show']]);
+        Route::get('users/{phone}/phone', 'UserController@getUserWithPhone');
+
+        /**
+         * Admins
+         */
+        Route::resource('admins', 'AdminController', ['only' => ['index', 'show', 'destroy']]);
+
+        /**
+         * Enterprises
+         */
+        Route::resource('enterprises', 'EnterpriseController', ['only' => ['index', 'show', 'destroy']]);
+
+        /**
+         * Households
+         */
+        Route::resource('households', 'HouseholdController', ['only' => ['index', 'show', 'destroy']]);
+
+        /**
+         * Collectors
+         */
+        Route::resource('collectors', 'CollectorController', ['only' => ['index', 'show', 'destroy']])->middleware(['admin:role']);
+        // Toggle collector Status
+        Route::get('collectors/{collector}/togglestatus', 'CollectorController@toggle');
+        // Get Collector Details
+        Route::get('collectors/{collector}/details', 'CollectorController@details');
+
+        /**
+         * Hosts
+         */
+        Route::resource('hosts', 'HostController', ['only' => ['index', 'show', 'destroy']]);
+
+        /**
+         * Collected Scraps
+         */
+        Route::resource('collectedscraps', 'CollectedScrapController', ['except' => ['update', 'store']]);
+
+        /**
+         * Contact Messages
+         */
+        Route::resource('contactmessages', 'ContactMessageController', ['except' => ['update']]);
+        Route::post('contactmessages/{contactmessage}/reply', 'ContactMessageController@reply');
+
+        /**
+         * Inventories
+         */
+        Route::resource('inventories', 'InventoryController', ['except' => ['update', 'store']]);
+
+        /**
+         * Listed Scraps
+         */
+        Route::resource('listedscraps', 'ListedScrapController', ['except' => ['update']]);
+
+        /**
+         * Locations
+         */
+        Route::get('locations', 'LocationController@getLocations');
+
+        /**
+         * Materials
+         */
+        Route::resource('materials', 'MaterialController', ['except' => ['index']]);
+
+        /**
+         * Pickup Requests
+         */
+        // Assign collector to pickup
+        Route::put('pickuprequests/assign', 'PickupRequestController@assign');
+        // Get Pickup request Count
+        Route::get('pickuprequests/count', 'PickupRequestController@count');
+
+        /**
+         * Wallet
+         */
+        Route::resource('wallets', 'WalletController', ['only' => ['update', 'destroy']]);
+
+    });
+
 });

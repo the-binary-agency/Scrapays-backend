@@ -3,59 +3,95 @@
 namespace App\Http\Controllers;
 
 use App\ContactMessage;
+use App\Http\Controllers\ApiController;
 use App\Mail\replyContactMail;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Mail;
 
-class ContactMessageController extends Controller
+class ContactMessageController extends ApiController
 {
-    public function send(Request $request)
+    /**
+     * Display a listing of the resource.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function index()
+    {
+        $contact_messages = ContactMessage::all();
+        return $this->showAll($contact_messages);
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function store(Request $request)
     {
         $this->validate($request, [
-            'name' => 'required|string',
-            'email' => 'required|string',
+            'name'    => 'required|string',
+            'email'   => 'required|string',
             'subject' => 'string',
-            'message' => 'required|string',
+            'message' => 'required|string'
         ]);
 
-        $contactmessage = new ContactMessage;
-            
-            $contactmessage->name = $request->input('name');
-            $contactmessage->email = $request->input('email');
-            $contactmessage->subject = $request->input('subject');
-            $contactmessage->message = $request->input('message');
-            $contactmessage->save();
+        $contactmessage = new ContactMessage();
 
-        return response()->json(["message" => "Message Sent Succesfully"]);
+        $contactmessage->name    = $request->input('name');
+        $contactmessage->email   = $request->input('email');
+        $contactmessage->phone   = $request->input('phone');
+        $contactmessage->subject = $request->input('subject');
+        $contactmessage->message = $request->input('message');
+        $contactmessage->save();
+
+        return $this->successResponse("Message Sent Succesfully.", 200, true);
     }
 
-    public function get()
+    /**
+     * Display the specified resource.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function show(ContactMessage $contactmessage)
     {
-        $contactmessage = DB::table('contact_messages')->latest()->get();
-        return response()->json((object)["messages" => $contactmessage]);
+        return $this->showOne($contactmessage);
     }
 
-    public function delete($id)
+    /**
+     * Reply the specified resource in storage.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function reply(Request $request, $id)
     {
-        $contactmessage = ContactMessage::find($id);
-        $contactmessage->delete();
-        return response()->json((object)["data" => 'Message deleted successfully']);
-    }
+        $this->validate($request, [
+            'body' => 'required'
+        ]);
 
-    public function reply(Request $request)
-    {
-        $b = (object)$request->body;
-        if($b->cc != '')
-        {
-            Mail::to($b->msgEmail)->cc($b->cc)
-                              ->send(new replyContactMail($b));
-        }else
-        {
-            Mail::to($b->msgEmail)->send(new replyContactMail($b));
+        $body = (object) $request->body;
+        if ($body->cc != '') {
+            Mail::to($body->msg_email)->cc($body->cc)
+                ->send(new replyContactMail($body));
+        } else {
+            Mail::to($body->msg_email)->send(new replyContactMail($body));
         }
 
-        return response()->json((object)['data' => 'Reply Successfull.'], Response::HTTP_OK);
+        return $this->successResponse("Reply Succesful.", 200, true);
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function destroy(ContactMessage $contactmessage)
+    {
+        $contactmessage->delete();
+        return $this->successResponse('Contact message deleted successfully.');
     }
 }

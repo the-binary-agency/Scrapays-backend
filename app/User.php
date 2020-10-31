@@ -2,29 +2,30 @@
 
 namespace App;
 
-use App\Http\Controllers\AuthController;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Tymon\JWTAuth\Contracts\JWTSubject;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Str;
-use Bavix\Wallet\Traits\HasWallet;
-use Bavix\Wallet\Interfaces\Wallet;
+use Tymon\JWTAuth\Contracts\JWTSubject;
 
 class User extends Authenticatable implements JWTSubject
 {
-    use Notifiable;
-    // use HasWallet;
+    use Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
      *
      * @var array
      */
-    protected $fillable = [ 'firstName', 'lastName', 'phone', 'email' ];
+    protected $fillable = [
+        'first_name',
+        'last_name',
+        'phone',
+        'email'
+    ];
 
-    protected $primaryKey = "phone";
+    protected $primaryKey = "id";
 
     public $timestamps = true;
 
@@ -32,20 +33,28 @@ class User extends Authenticatable implements JWTSubject
 
     protected $with = ['userable'];
 
+    protected $dates = ['deleted_at'];
+
     /**
      * The attributes that should be hidden for arrays.
      *
      * @var array
      */
     protected $hidden = [
-        'password', 'remember_token', 'userable_id', 'pin', 'updated_at', 'inviteCode', 'email_verified_at', 'api_token'
+        'password',
+        'remember_token',
+        'userable_id',
+        'pin',
+        'updated_at',
+        'invite_code',
+        'email_verified_at',
+        'api_token'
     ];
 
     protected $attributes = [
-        'avatarImage' => '',   
-        'inviteCode' => ''
+        'avatar_image' => '',
+        'invite_code'  => ''
     ];
-
 
     /**
      * The attributes that should be cast to native types.
@@ -53,12 +62,67 @@ class User extends Authenticatable implements JWTSubject
      * @var array
      */
     protected $casts = [
-        'email_verified_at' => 'datetime',
+        'email_verified_at' => 'datetime'
     ];
 
     public function userable()
     {
         return $this->morphTo();
+    }
+
+    public function setPhoneAttribute($phone)
+    {
+        $this->attributes['phone'] = '+234' . substr($phone, 1);
+    }
+
+    public function setPinAttribute($pin)
+    {
+        $this->attributes['pin'] = Crypt::encryptString($pin);
+    }
+
+    public function getfirstNameAttribute($first_name)
+    {
+        return ucwords($first_name);
+    }
+
+    public function getlastNameAttribute($last_name)
+    {
+        return ucwords($last_name);
+    }
+
+    public function getPhoneAttribute($phone)
+    {
+        return '0' . explode('+234', $phone)[1];
+    }
+
+    public function collectedScrap()
+    {
+        return $this->hasMany(CollectedScrap::class, 'collector_id');
+    }
+
+    public function producedScrap()
+    {
+        return $this->hasMany(CollectedScrap::class, 'producer_id');
+    }
+
+    public function requestedPickup()
+    {
+        return $this->hasMany(PickupRequest::class, 'producer_id');
+    }
+
+    public function assignedPickup()
+    {
+        return $this->hasMany(PickupRequest::class, 'assigned_collector');
+    }
+
+    public function inventories()
+    {
+        return $this->hasMany(Inventory::class, 'enterprise_id');
+    }
+
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class);
     }
 
     /**
@@ -78,19 +142,25 @@ class User extends Authenticatable implements JWTSubject
      */
     public function getJWTCustomClaims()
     {
-        return ['userable_type' => $this->userable_type, 'phone' => $this->phone];
+        if ($this->userable_type === 'Admin') {
+            return ['userable_type' => $this->userable_type, 'id' => $this->id, 'permissions' => $this->userable->permisssions];
+        } else {
+            return ['userable_type' => $this->userable_type, 'id' => $this->id];
+
+        }
     }
 
-    public function setPasswordAttribute($value){
-        $this->attributes['password']  = bcrypt($value);
+    public function setPasswordAttribute($value)
+    {
+        $this->attributes['password'] = bcrypt($value);
     }
 
     public static function boot()
-{
-    parent::boot();
+    {
+        parent::boot();
 
-    static::creating(function ($user) {
-        $user->id = strtoupper(Str::random(9));
-    });
-}
+        static::creating(function ($user) {
+            $user->id = strtoupper(Str::random(9));
+        });
+    }
 }

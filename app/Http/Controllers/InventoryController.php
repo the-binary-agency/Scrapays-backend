@@ -2,24 +2,41 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\ApiController;
 use App\Inventory;
 use App\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Symfony\Component\HttpFoundation\Response;
 
-class InventoryController extends Controller
+class InventoryController extends ApiController
 {
-
-    public function __construct()
+    /**
+     * Display a listing of the inventories.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function index()
     {
-        $this->middleware('auth:api', ['except' => [
-            ]]);
+        $inventories = Inventory::all();
+        $this->showAll($inventories);
     }
 
-    public function submitInventory(Request $request)
+    /**
+     * Store a newly created inventory in storage.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function store(Request $request)
     {
-        if( $request->file('receipt') ){
+        $this->validate($request, [
+            'enterprise_id'     => 'required',
+            'material'          => 'required',
+            'volume'            => 'required',
+            'revenue_generated' => 'required',
+            'receipt'           => 'required'
+        ]);
+
+        if ($request->file('receipt')) {
 
             // get the File Name and Extension
             $fileNameWithExt = $request->file('receipt')->getClientOriginalName();
@@ -28,57 +45,58 @@ class InventoryController extends Controller
             // get file extension
             $fileExt = $request->file('receipt')->getClientOriginalExtension();
             // rename the file
-            $fileNameToStore = $fileName ."_" . time() .".".$fileExt;
+            $fileNameToStore = $fileName . "_" . time() . "." . $fileExt;
 
             $request->file('receipt')->storeAs('public/Inventory_Receipts', $fileNameToStore);
 
         }
 
-        $inventory = new Inventory();
-        $inventory->enterpriseID = $request->input('enterpriseID');
-        $inventory->material = $request->input('material');
-        $inventory->volume = $request->input('volume');
-        $inventory->revenueGenerated = $request->input('revenueGenerated');
-        $inventory->receipt = $fileNameToStore;
+        $inventory                    = new Inventory();
+        $inventory->enterprise_id     = $request->input('enterprise_id');
+        $inventory->enterprise_phone  = $request->user->phone;
+        $inventory->material          = $request->input('material');
+        $inventory->volume            = $request->input('volume');
+        $inventory->revenue_generated = $request->input('revenue_generated');
+        $inventory->receipt           = $fileNameToStore;
 
-        $inventory->save(); 
+        $inventory->save();
 
-        return response()->json(['Inventory Updated Successfully.'], Response::HTTP_CREATED);
+        return $this->successResponse('Inventory Updated Successfully.', 201, true);
     }
 
-    public function getUserInventory($id)
+    /**
+     * Display the specified inventory.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function show($id)
     {
-        if($user = User::find($id))
-        {
-            $inventory =  DB::table('inventories')->where('enterpriseID', $id)->get();
-            return response()->json([$inventory], Response::HTTP_OK);
-        }else{
-            return response()->json(['You have no inventory with us.'], Response::HTTP_NOT_FOUND);
-        };
-
+        $inventory = Inventory::findOrFail($id);
+        return $this->showAll($inventory);
     }
 
-    public function getSingleInventory(Request $request)
+    /**
+     * Display the specified enterpise's inventory.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function get(User $enterprise)
     {
-        $user = User::find($request->input('id'));
-        if ($user->userable_type != 'App\Admin') 
-        {
-            return response()->json(['error' => 'Unauthorised'], Response::HTTP_UNAUTHORIZED);
-        };
-
-        $inventory =  Inventory::find($request->input('inventoryID'));
-        return response()->json([$inventory], Response::HTTP_OK);
+        $inventory = $enterprise->inventories;
+        return $this->showAll($inventory);
     }
 
-    public function getAllInventory(Request $request)
+    /**
+     * Remove the specified inventory from storage.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function destroy(Inventory $inventory)
     {
-        $user = User::find($request->input('id'));
-        if ($user->userable_type != 'App\Admin') 
-        {
-            return response()->json(['error' => 'Unauthorised'], Response::HTTP_UNAUTHORIZED);
-        };
-
-        $inventory =  Inventory::all();
-        return response()->json([$inventory], Response::HTTP_OK);
+        $inventory->delete();
+        return $this->successResponse('Inventory deleted successfully.', 200, true);
     }
 }
