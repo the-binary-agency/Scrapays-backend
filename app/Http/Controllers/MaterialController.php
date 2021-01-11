@@ -34,6 +34,7 @@ class MaterialController extends ApiController
             'price'                => 'required|integer',
             'collector_commission' => 'required|integer',
             'host_commisssion'     => 'required|integer',
+            'revenue_commisssion'  => 'required|integer',
             'image'                => 'required'
         ]);
 
@@ -56,6 +57,7 @@ class MaterialController extends ApiController
         $material->price                = $request->input('price');
         $material->collector_commission = $request->input('collector_commission');
         $material->host_commisssion     = $request->input('host_commisssion');
+        $material->revenue_commission   = $request->input('revenue_commission');
         $material->image                = $fileNameToStore;
         $material->save();
 
@@ -84,32 +86,35 @@ class MaterialController extends ApiController
     {
         $this->validate($request, [
             'name'                 => 'required|string',
-            'price'                => 'required',
-            'collector_commission' => 'required',
-            'host_commission'      => 'required'
+            'price'                => 'required|integer',
+            'collector_commission' => 'required|integer',
+            'host_commission'      => 'required|integer',
+            'revenue_commission'   => 'required|integer'
         ]);
 
-        if ($image = $request->file('image')) {
+        if ($request->file('mat-image')) {
 
             Storage::delete('public/material_list_images/' . $material->image);
 
             //  get the File Name and Extension
-            $fileNameWithExt = $image->getClientOriginalName();
+            $fileNameWithExt = $request->file('mat-image')->getClientOriginalName();
             // let get only the file name
             $fileName = pathinfo($fileNameWithExt, PATHINFO_FILENAME);
             // get file extension
-            $fileExt = $image->getClientOriginalExtension();
+            $fileExt = $request->file('mat-image')->getClientOriginalExtension();
             // rename the file
-            $fileNameToStore = $fileName . "_" . time() . "." . $fileExt;
+            $fileNameToStore = "material-" . $fileName . "_" . time() . "." . $fileExt;
 
-            $image->storeAs('public/material_list_images', $fileNameToStore);
             $material->image = $fileNameToStore;
+
+            $request->file('mat-image')->storeAs('public/material_list_images', $fileNameToStore);
         }
 
         $material->name                 = $request->input('name');
         $material->price                = $request->input('price');
         $material->collector_commission = $request->input('collector_commission');
         $material->host_commission      = $request->input('host_commission');
+        $material->revenue_commission   = $request->input('revenue_commission');
         $material->save();
 
         return $this->successResponse('Material updated successfully.', 200, true);

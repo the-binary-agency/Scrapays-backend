@@ -19,6 +19,7 @@ class CreateMaterialsTable extends Migration
             $table->bigInteger('price');
             $table->bigInteger('collector_commission');
             $table->bigInteger('host_commission');
+            $table->bigInteger('revenue_commission');
             $table->string('image');
             $table->timestamps();
         });

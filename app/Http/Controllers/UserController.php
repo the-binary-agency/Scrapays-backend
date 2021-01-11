@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\CollectedScrap;
+use App\Events\SearchUserEvent;
 use App\Http\Controllers\ApiController;
+use App\Material;
 use App\Notification;
 use App\PickupRequest;
 use App\Traits\Notifications;
@@ -40,7 +42,10 @@ class UserController extends ApiController
      */
     public function getUserWithPhone($phone)
     {
-        $user = User::where('phone', $phone);
+        $user = User::where('phone', $phone)->first();
+        if (!$user) {
+            return $this->errorResponse("User with phone number {$phone} cannot be found.", 404);
+        }
         return $this->showOne($user);
     }
 
@@ -71,10 +76,37 @@ class UserController extends ApiController
      */
     public function getUserName(Request $request, $phone)
     {
-        $collector = $request->user;
+        $producer_phone = '+234' . substr($phone, 1);
 
-        if ($collector->userable_type != 'Collector' || !$collector->userable->approved_as_collector) {
-            return $this->errorResponse('Only approved Collectors can access this route.', 401);
+        if ($user = User::where('phone', $producer_phone)->first()) {
+            $response = (object) [
+                'Name' => $user->first_name . ' ' . $user->last_name
+            ];
+
+            return $this->successResponse($response, 200, true);
+        } else if ($user = User::find($phone)) {
+            $response = (object) [
+                'Name' => $user->first_name . ' ' . $user->last_name
+            ];
+
+            return $this->successResponse($response, 200, true);
+
+        } else {
+            return $this->errorResponse("Not Found.", 404);
+        }
+    }
+
+    /**
+     * Show a specified producer's name.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function getProducerName(Request $request, $phone)
+    {
+        $user = $request->user;
+
+        if (($user->userable_type != 'Collector' || !$user->userable->approved_as_collector) && $user->userable_type != 'Admin') {
+            return $this->errorResponse('Only Admins and approved Collectors can access this route.', 401);
         }
 
         $producer_phone = '+234' . substr($phone, 1);
@@ -145,159 +177,322 @@ class UserController extends ApiController
             $collection = $collection->whereBetween('created_at', [$from, $now]);
         }
 
-        $history = $this->calculateHistory($collection);
+        $history = $this->calculateHistory($collection, $request->user);
 
         return $this->successResponse($history, 200, true);
     }
 
-    public function calculateHistory($collection)
+    public function calculateHistory($collection, $authorized_user)
     {
-        $holder = (object) [];
-        $obj2   = array();
+        $holder           = (object) [];
+        $sorted_materials = array();
+
+        $original_materials = Material::all();
 
         foreach ($collection as $coll) {
-            array_filter(json_decode($coll->materials), function ($mat) use ($holder) {
-                if (property_exists($holder, $mat->name)) {
-                    $props = explode('-', $holder->{$mat->name});
-                    if ($mat->name == 'Composite') {
-                        $prevCost             = $props[1];
-                        $prevWeight           = $props[0];
-                        $cost                 = $prevCost + $mat->cost;
-                        $weight               = $prevWeight + $mat->weight;
-                        $holder->{$mat->name} = $weight . '-' . $cost;
-                    } else {
-                        $prevCost             = $props[1];
-                        $prevWeight           = $props[0];
-                        $cost                 = $prevCost + ($mat->weight * $mat->price);
-                        $weight               = $prevWeight + $mat->weight;
-                        $holder->{$mat->name} = $weight . '-' . $cost;
+            array_filter(json_decode($coll->materials), function ($mat) use ($holder, $original_materials) {
+
+                $collector_commission = 0;
+                $host_commission      = 0;
+
+                foreach ($original_materials as $o_mat) {
+                    if ($o_mat->name === $mat->name) {
+                        $collector_commission = $o_mat['collector_commission'];
+                        $host_commission      = $o_mat['host_commission'];
                     }
+                }
+
+                if (property_exists($holder, $mat->name)) {
+
+                    $current_material = $holder->{$mat->name};
+
+                    if ($mat->name == 'Composite') {
+                        $prev_cost     = $current_material->cost;
+                        $prev_weight   = $current_material->weight;
+                        $prev_col_com  = $current_material->collector_commission;
+                        $prev_host_com = $current_material->host_commission;
+
+                        $cost     = $prev_cost + $mat->cost;
+                        $weight   = $prev_weight + $mat->weight;
+                        $col_com  = $prev_col_com + ($mat->weight * $collector_commission);
+                        $host_com = $prev_host_com + ($mat->weight * $host_commission);
+
+                        $holder->{$mat->name} = (object) [
+                            'weight'               => $weight,
+                            'cost'                 => $cost,
+                            'collector_commission' => $col_com,
+                            'host_commission'      => $host_com
+                        ];
+
+                    } else {
+                        $prev_cost     = $current_material->cost;
+                        $prev_weight   = $current_material->weight;
+                        $prev_col_com  = $current_material->collector_commission;
+                        $prev_host_com = $current_material->host_commission;
+
+                        $cost     = $prev_cost + ($mat->weight * $mat->price);
+                        $weight   = $prev_weight + $mat->weight;
+                        $col_com  = $prev_col_com + ($mat->weight * $collector_commission);
+                        $host_com = $prev_host_com + ($mat->weight * $host_commission);
+
+                        $holder->{$mat->name} = (object) [
+                            'weight'               => $weight,
+                            'cost'                 => $cost,
+                            'collector_commission' => $col_com,
+                            'host_commission'      => $host_com
+                        ];
+                    }
+
                 } else {
                     if ($mat->name == 'Composite') {
-                        $holder->{$mat->name} = $mat->weight . '-' . $mat->cost;
+                        $holder->{$mat->name} = (object) [
+                            'weight'               => $mat->weight,
+                            'cost'                 => $mat->cost,
+                            'collector_commission' => $collector_commission * $mat->weight,
+                            'host_commission'      => $host_commission * $mat->weight
+                        ];
                     } else {
-                        $holder->{$mat->name} = $mat->weight . '-' . $mat->weight * $mat->price;
+                        $holder->{$mat->name} = (object) [
+                            'weight'               => $mat->weight,
+                            'cost'                 => $mat->weight * $mat->price,
+                            'collector_commission' => $collector_commission * $mat->weight,
+                            'host_commission'      => $host_commission * $mat->weight
+                        ];
                     }
                 }
             });
         }
 
-        foreach ($holder as $prop => $value) {
-            $props = explode('-', $holder->{$prop});
-            array_push($obj2, (object) [
-                'name'   => $prop,
-                'weight' => $props[0],
-                'cost'   => $props[1]
-            ]);
+        foreach ($holder as $material => $values) {
+            $current_material = $holder->{$material};
+            $new_mat          = (object) [
+                'name'   => $material,
+                'weight' => $current_material->weight,
+                'cost'   => $current_material->cost
+            ];
+
+            if ($authorized_user->userable_type === 'Admin' || $authorized_user->userable_type === 'Collector') {
+                $new_mat->{'collector_commission'} = $current_material->collector_commission;
+            }
+            if ($authorized_user->userable_type === 'Admin' || $authorized_user->userable_type === 'Host') {
+                $new_mat->{'host_commission'} = $current_material->host_commission;
+            }
+
+            array_push($sorted_materials, $new_mat);
         }
-        $total_tonnage = 0;
-        $totalcost     = 0;
-        foreach ($obj2 as $mat) {
-            $total_tonnage += $mat->weight;
-            $totalcost += $mat->cost;
+
+        $total_tonnage  = 0;
+        $total_cost     = 0;
+        $total_col_com  = 0;
+        $total_host_com = 0;
+
+        foreach ($sorted_materials as $material) {
+            $total_tonnage += $material->weight;
+            $total_cost += $material->cost;
+            $total_col_com += $material->collector_commission;
+            $total_host_com += $material->host_commission;
         }
 
         $hist = (object) [
-            'materials'     => $obj2,
+            'materials'     => $sorted_materials,
             'total_tonnage' => $total_tonnage,
-            'totalcost'     => $totalcost
+            'total_cost'    => $total_cost
         ];
+
+        if ($authorized_user->userable_type === 'Admin' || $authorized_user->userable_type === 'Collector') {
+            $hist->{'total_collector_commission'} = $total_col_com;
+        }
+        if ($authorized_user->userable_type === 'Admin' || $authorized_user->userable_type === 'Host') {
+            $hist->{'total_host_commission'} = $total_host_com;
+        }
 
         return $hist;
     }
 
     public function refactor()
     {
-        $user = User::all();
+        // $user = User::all();
 
-        foreach ($user as $us) {
-            $newUser                = user::find($us->id);
-            $newUser->userable_type = explode('App\\', $newUser->userable_type)[1];
-            $newUser->save();
-        }
+        // foreach ($user as $us) {
+        //     $newUser                = user::find($us->id);
+        //     $newUser->userable_type = explode('App\\', $newUser->userable_type)[1];
+        //     $newUser->save();
+        // }
 
-        error_log('--------------------------- Finished Users --------------------------------------');
+        // error_log('--------------------------- Finished Users --------------------------------------');
 
-        $collectedscrap = CollectedScrap::all();
+        // $collectedscrap = CollectedScrap::all();
 
-        foreach ($collectedscrap as $scrap) {
-            $producer  = User::where('phone', '+234' . substr($scrap->producer_id, 1))->first();
-            $collector = User::where('phone', $scrap->collector_id)->first();
-            $materials = json_decode($scrap->materials);
+        // foreach ($collectedscrap as $scrap) {
+        //     $producer  = User::where('phone', '+234' . substr($scrap->producer_id, 1))->first();
+        //     $collector = User::where('phone', $scrap->collector_id)->first();
+        //     $materials = json_decode($scrap->materials);
 
-            foreach ($materials as $material) {
-                error_log('before ----->  ' . $material->weight);
-                $material->weight = round($material->weight, 2);
-                error_log('after ----->  ' . $material->weight);
-            }
+        //     foreach ($materials as $material) {
+        //         error_log('before ----->  ' . $material->weight);
+        //         $material->weight = round($material->weight, 2);
+        //         error_log('after ----->  ' . $material->weight);
+        //     }
 
-            $newScrap = CollectedScrap::find($scrap->id);
+        //     $newScrap = CollectedScrap::find($scrap->id);
 
-            if ($producer) {
-                $newScrap->producer_id = $producer->id;
-            }
-            if ($collector) {
-                $newScrap->collector_id = $collector->id;
-            }
+        //     if ($producer) {
+        //         $newScrap->producer_id = $producer->id;
+        //     }
+        //     if ($collector) {
+        //         $newScrap->collector_id = $collector->id;
+        //     }
 
-            $newScrap->materials = json_encode($materials);
-            $newScrap->save();
-        }
+        //     $newScrap->materials = json_encode($materials);
+        //     $newScrap->save();
+        // }
 
-        error_log('--------------------------- Finished Collected Scrap --------------------------------------');
+        // error_log('--------------------------- Finished Collected Scrap --------------------------------------');
 
-        $notifications = Notification::all();
+        // $notifications = Notification::all();
 
-        foreach ($notifications as $noty) {
-            $user    = User::where('phone', $noty->user_id)->first();
-            $newNoty = Notification::find($noty->id);
+        // foreach ($notifications as $noty) {
+        //     $user    = User::where('phone', $noty->user_id)->first();
+        //     $newNoty = Notification::find($noty->id);
 
-            if ($user) {
-                $newNoty->user_id = $user->id;
-            }
+        //     if ($user) {
+        //         $newNoty->user_id = $user->id;
+        //     }
 
-            $newNoty->save();
-        }
+        //     $newNoty->save();
+        // }
 
-        error_log('--------------------------- Finished Notifications --------------------------------------');
+        // error_log('--------------------------- Finished Notifications --------------------------------------');
 
-        $pickupRequests = PickupRequest::all();
+        // $pickupRequests = PickupRequest::all();
 
-        foreach ($pickupRequests as $pickup) {
-            $producer  = User::where('phone', $pickup->producer_id)->first();
-            $collector = '';
-            if ($pickup->assigned_collector) {
-                $collector = User::where('phone', $pickup->assigned_collector)->first();
-            }
-            $schedules = json_decode($pickup->schedule);
+        // foreach ($pickupRequests as $pickup) {
+        //     $producer  = User::where('phone', $pickup->producer_id)->first();
+        //     $collector = '';
+        //     if ($pickup->assigned_collector) {
+        //         $collector = User::where('phone', $pickup->assigned_collector)->first();
+        //     }
+        //     $schedules = json_decode($pickup->schedule);
 
-            foreach ($schedules as $key => $schedule) {
-                if ($key == 'scheduleDate') {
-                    error_log('before date ----->  ' . json_encode($schedules));
-                    $schedules->schedule_date = $schedules->scheduleDate;
-                    unset($schedules->scheduleDate);
-                    error_log('after date ----->  ' . json_encode($schedules));
-                } else if ($key == 'scheduleTime') {
-                    error_log('before time ----->  ' . json_encode($schedules));
-                    $schedules->schedule_time = $schedules->scheduleTime;
-                    unset($schedules->scheduleTime);
-                    error_log('after time ----->  ' . json_encode($schedules));
+        //     foreach ($schedules as $key => $schedule) {
+        //         if ($key == 'scheduleDate') {
+        //             error_log('before date ----->  ' . json_encode($schedules));
+        //             $schedules->schedule_date = $schedules->scheduleDate;
+        //             unset($schedules->scheduleDate);
+        //             error_log('after date ----->  ' . json_encode($schedules));
+        //         } else if ($key == 'scheduleTime') {
+        //             error_log('before time ----->  ' . json_encode($schedules));
+        //             $schedules->schedule_time = $schedules->scheduleTime;
+        //             unset($schedules->scheduleTime);
+        //             error_log('after time ----->  ' . json_encode($schedules));
+        //         }
+        //     }
+
+        //     $newPickup = PickupRequest::find($pickup->id);
+        //     if ($producer) {
+        //         $newPickup->producer_id = $producer->id;
+        //     }
+        //     if ($collector) {
+        //         $newPickup->assigned_collector = $collector->id;
+        //     }
+        //     $newPickup->schedule = json_encode($schedules);
+        //     $newPickup->save();
+        // }
+
+        // $collectedscrap = CollectedScrap::all();
+
+        // foreach ($collectedscrap as $scrap) {
+        //     $materials = json_decode($scrap->materials);
+
+        //     foreach ($materials as $material) {
+        //         // $material->weight = round($material->weight, 2);
+        //         $exploded = explode('/kg', $material->price);
+        //         if (array_key_exists(1, $exploded)) {
+        //             error_log('before ----->  ' . $material->price);
+        //             $material->price = $exploded[0];
+        //             error_log('after ----->  ' . $material->price);
+        //         }
+        //     }
+
+        //     $newScrap = CollectedScrap::find($scrap->id);
+
+        //     $newScrap->materials = json_encode($materials);
+        //     $newScrap->save();
+        // }
+
+        $users = User::all();
+
+        foreach ($users as $user) {
+            if ($user->userable_type !== 'Admin') {
+                $scrap     = array();
+                $materials = array();
+
+                if ($user->userable_type === 'Collector') {
+                    $materials = $user->collectedScrap->pluck('materials');
+                } else if ($user->userable_type === 'Enterprise' || $user->userable_type === 'Household') {
+                    $materials = $user->producedScrap->pluck('materials');
                 }
+
+                foreach ($materials as $material) {
+                    foreach (json_decode($material) as $mat) {
+                        array_push($scrap, $mat);
+                    }
+                }
+
+                $holder = (object) [];
+
+                array_filter($scrap, function ($material) use ($holder) {
+                    if (property_exists($holder, $material->name)) {
+                        $holder->{$material->name} = (object) [
+                            'weight' => $holder->{$material->name}->weight + $material->weight,
+                            'cost'   => $holder->{$material->name}->cost + ($material->weight * $material->price)
+                        ];
+                    } else {
+                        $holder->{$material->name} = (object) [
+                            'weight' => $material->weight,
+                            'cost'   => ($material->weight * $material->price)
+                        ];
+                    }
+                });
+
+                $tonnage = 0;
+                $cost    = 0;
+
+                foreach ($holder as $material => $value) {
+                    $tonnage += $holder->{$material}->weight;
+                    $cost += $holder->{$material}->cost;
+                }
+
+                // error_log($user->first_name . ' ' . $user->last_name . ' ' . $tonnage . '-' . $cost);
+
+                $user->total_tonnage = $tonnage;
+                if ($user->userable_type === 'Enterprise' || $user->userable_type === 'Household') {
+                    $user->total_earnings = $cost;
+                }
+                $user->save();
+
             }
 
-            $newPickup = PickupRequest::find($pickup->id);
-            if ($producer) {
-                $newPickup->producer_id = $producer->id;
-            }
-            if ($collector) {
-                $newPickup->assigned_collector = $collector->id;
-            }
-            $newPickup->schedule = json_encode($schedules);
-            $newPickup->save();
         }
 
         error_log('--------------------------- Done --------------------------------------');
 
-        return $this->successResponse('Done', 200, true);
+        return $this->successResponse('success', 200, true);
+    }
+
+    public function searchUsers(Request $request)
+    {
+        $query = $request->query('query');
+        $users = User::where('first_name', 'like', '%' . $query . '%')
+            ->orWhere('last_name', 'like', '%' . $query . '%')
+            ->orWhere('phone', 'like', '%' . $query . '%')
+            ->get();
+
+        $users = $this->showAll($users);
+
+        //broadcast search results with Pusher channels
+        event(new SearchUserEvent($users));
+
+        return $this->successResponse("ok", 200, true);
     }
 }

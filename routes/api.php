@@ -5,9 +5,9 @@ use Illuminate\Support\Facades\Route;
  * Public Routes
  */
 // send Contact Message
-Route::post('contactmessages/send', 'ContactMessageController@store');
+Route::post('contactmessages', 'ContactMessageController@store');
 
-Route::post('refactor', 'UserController@refactor');
+// Route::post('refactor', 'UserController@refactor');
 
 /**
  * Public Auth
@@ -51,10 +51,6 @@ Route::group([
      * Login with phone number
      */
     Route::post('phone/login', 'Auth\LoginController@phone');
-    /**
-     * Login with USSD
-     */
-    Route::post('ussd/login', 'Auth\LoginController@ussd');
 
     /**
      * Send password reset email
@@ -97,7 +93,7 @@ Route::group([
         Route::put('admins/{admin}', 'Auth\AdminAuthController@update')->middleware(['admin']);
 
         /**
-         * Hosehold
+         * Household
          */
         // Get logged in Household
         Route::get('households/me', 'Auth\HouseholdAuthController@me');
@@ -115,7 +111,7 @@ Route::group([
         Route::put('enterprises/{enterprise}', 'Auth\EnterpriseAuthController@update');
         //  Automate Enterprise Pickup
         Route::put('enterprises/pickup/{enterprise}/automate', 'Auth\EnterpriseAuthController@automatePickup');
-        //  Unautomate Enterprise Pickup
+        //  Un-automate Enterprise Pickup
         Route::put('enterprises/pickup/{enterprise}/unautomate', 'Auth\EnterpriseAuthController@unAutomatePickup');
 
         /**
@@ -146,8 +142,8 @@ Route::group([
     /**
      * Users
      */
-    //  Search for User with phone number or ID
-    Route::get('users/{phone}/name', 'UserController@getUserName');
+    //  Search for Producer with phone number or ID
+    Route::get('users/{phone}/producer-name', 'UserController@getProducerName');
 
     /**
      * Pickup Requests
@@ -161,6 +157,7 @@ Route::group([
     Route::post('wallets/withdraw', 'WalletController@withdraw');
     Route::post('wallets/transfer', 'WalletController@transfer');
     Route::post('wallets/airtime', 'WalletController@airtime');
+    Route::get('wallets/{user}/withdrawal-history', 'WalletController@getWithdrawalHistory');
 
     /**
      * Enterprises
@@ -219,94 +216,91 @@ Route::group([
     Route::resource('inventories', 'InventoryController', ['only' => ['store']]);
 
     /**
-     * Admin-Only
+     * Admin-Only -----------------------------------------------------------------------------------------------------------------------
      */
-    Route::group([
+    /**
+     * Users
+     */
+    Route::get('users/count', 'UserController@getUserCount')->middleware('authorize:can_view_users');
+    Route::get('users/search', 'UserController@searchUsers')->middleware('authorize:can_view_users');
+    Route::resource('users', 'UserController', ['only' => ['index', 'show']])->middleware('authorize:can_view_users');
+    Route::get('users/{phone}/phone', 'UserController@getUserWithPhone')->middleware('authorize:can_view_users');
+    Route::get('users/{phone}/name', 'UserController@getUserName')->middleware('authorize:can_view_users');
 
-        'middleware' => 'authorize'
+    /**
+     * Admins
+     */
+    Route::resource('admins', 'AdminController', ['only' => ['index', 'show', 'destroy']])->middleware('authorize:can_view_users');
+    Route::put('admins/{admin}/change-permissions', 'AdminController@changePermissions')->middleware('authorize:all');
 
-    ], function () {
+    /**
+     * Enterprises
+     */
+    Route::resource('enterprises', 'EnterpriseController', ['only' => ['index', 'show', 'destroy']])->middleware('authorize:can_view_producers');
 
-        /**
-         * Users
-         */
-        Route::get('users/count', 'UserController@getUserCount');
-        Route::resource('users', 'UserController', ['only' => ['index', 'show']]);
-        Route::get('users/{phone}/phone', 'UserController@getUserWithPhone');
+    /**
+     * Households
+     */
+    Route::resource('households', 'HouseholdController', ['only' => ['index', 'show', 'destroy']])->middleware('authorize:can_view_producers');
 
-        /**
-         * Admins
-         */
-        Route::resource('admins', 'AdminController', ['only' => ['index', 'show', 'destroy']]);
+    /**
+     * Collectors
+     */
+    Route::resource('collectors', 'CollectorController', ['only' => ['index', 'show', 'destroy']])->middleware('authorize:can_view_users');
+    // Toggle collector Status
+    Route::get('collectors/{collector}/togglestatus', 'CollectorController@toggle')->middleware('authorize:can_give_access_to_collector');
+    // Get Collector Details
+    Route::get('collectors/{collector}/details', 'CollectorController@details')->middleware('authorize:can_view_users');
 
-        /**
-         * Enterprises
-         */
-        Route::resource('enterprises', 'EnterpriseController', ['only' => ['index', 'show', 'destroy']]);
+    /**
+     * Hosts
+     */
+    Route::resource('hosts', 'HostController', ['only' => ['index', 'show', 'destroy']])->middleware('authorize:can_view_users');
 
-        /**
-         * Households
-         */
-        Route::resource('households', 'HouseholdController', ['only' => ['index', 'show', 'destroy']]);
+    /**
+     * Collected Scraps
+     */
+    Route::resource('collectedscraps', 'CollectedScrapController', ['except' => ['update', 'store']])->middleware('authorize:can_view_listing');
 
-        /**
-         * Collectors
-         */
-        Route::resource('collectors', 'CollectorController', ['only' => ['index', 'show', 'destroy']])->middleware(['admin:role']);
-        // Toggle collector Status
-        Route::get('collectors/{collector}/togglestatus', 'CollectorController@toggle');
-        // Get Collector Details
-        Route::get('collectors/{collector}/details', 'CollectorController@details');
+    /**
+     * Contact Messages
+     */
+    Route::resource('contactmessages', 'ContactMessageController', ['except' => ['update']])->middleware('authorize:can_view_messages');
+    Route::post('contactmessages/{contactmessage}/reply', 'ContactMessageController@reply')->middleware('authorize:can_view_messages');
 
-        /**
-         * Hosts
-         */
-        Route::resource('hosts', 'HostController', ['only' => ['index', 'show', 'destroy']]);
+    /**
+     * Inventories
+     */
+    Route::resource('inventories', 'InventoryController', ['except' => ['update', 'store']])->middleware('authorize:can_view_users');
 
-        /**
-         * Collected Scraps
-         */
-        Route::resource('collectedscraps', 'CollectedScrapController', ['except' => ['update', 'store']]);
+    /**
+     * Listed Scraps
+     */
+    Route::resource('listedscraps', 'ListedScrapController', ['except' => ['update']])->middleware('authorize:can_view_listing');
 
-        /**
-         * Contact Messages
-         */
-        Route::resource('contactmessages', 'ContactMessageController', ['except' => ['update']]);
-        Route::post('contactmessages/{contactmessage}/reply', 'ContactMessageController@reply');
+    /**
+     * Locations
+     */
+    Route::get('locations', 'LocationController@getLocations')->middleware('authorize:can_view_users');
 
-        /**
-         * Inventories
-         */
-        Route::resource('inventories', 'InventoryController', ['except' => ['update', 'store']]);
+    /**
+     * Materials
+     */
+    Route::resource('materials', 'MaterialController', ['except' => ['index']])->middleware('authorize:can_update_materials');
 
-        /**
-         * Listed Scraps
-         */
-        Route::resource('listedscraps', 'ListedScrapController', ['except' => ['update']]);
+    /**
+     * Pickup Requests
+     */
+    // Assign collector to pickup
+    Route::put('pickuprequests/assign', 'PickupRequestController@assign')->middleware('authorize:can_view_users');
+    // Get Pickup request Count
+    Route::get('pickuprequests/count', 'PickupRequestController@count')->middleware('authorize:can_view_users');
 
-        /**
-         * Locations
-         */
-        Route::get('locations', 'LocationController@getLocations');
-
-        /**
-         * Materials
-         */
-        Route::resource('materials', 'MaterialController', ['except' => ['index']]);
-
-        /**
-         * Pickup Requests
-         */
-        // Assign collector to pickup
-        Route::put('pickuprequests/assign', 'PickupRequestController@assign');
-        // Get Pickup request Count
-        Route::get('pickuprequests/count', 'PickupRequestController@count');
-
-        /**
-         * Wallet
-         */
-        Route::resource('wallets', 'WalletController', ['only' => ['update', 'destroy']]);
-
-    });
+    /**
+     * Wallet
+     */
+    Route::resource('wallets', 'WalletController', ['only' => ['update', 'destroy']])->middleware('authorize:can_view_users');
+    Route::get('wallets/{user}/history', 'WalletController@getCombinedWalletHistory')->middleware('authorize:can_view_users');
+    Route::post('wallets/set-pin', 'WalletController@changeWalletPin')->middleware('authorize:all');
 
 });

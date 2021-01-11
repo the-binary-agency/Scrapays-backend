@@ -19,7 +19,7 @@ class RegisterController extends ApiController
     {
         $superAdmin = User::find($request->input('super_admin'));
         if (!$superAdmin || $superAdmin->userable_type != 'Admin') {
-            return $this->errorResponse('Only the super admin can ceate more admins.', 422);
+            return $this->errorResponse('Only the super admin can create more admins.', 422);
         }
 
         $res = $this->saveUser($request);
@@ -69,6 +69,7 @@ class RegisterController extends ApiController
 
         $request->password = '123456';
         $request->email    = null;
+        $request->phone    = '0' . explode('+234', $request->phone)[1];
 
         $res = $this->saveUser($request);
 

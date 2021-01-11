@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\CollectedScrap;
 use App\Http\Controllers\ApiController;
 use App\Inventory;
+use App\Material;
 use App\PickupRequest;
 use App\User;
 use Illuminate\Http\Request;
@@ -33,9 +34,14 @@ class CollectedScrapController extends ApiController
     {
         $this->validate($request, [
             'mode'         => 'required|string',
-            'producer_id'  => 'required|string',
             'collector_id' => 'required|string'
         ]);
+
+        if (!$request->newUser) {
+            $this->validate($request, [
+                'producer_id' => 'required|string'
+            ]);
+        }
 
         if (!$this->isApproveddCollector($request->user)) {
             return $this->errorResponse('Only approved collectors are allowed to collect materials.', 422);
@@ -58,7 +64,6 @@ class CollectedScrapController extends ApiController
 
         $scrap                 = new collectedScrap();
         $scrap->producer_id    = $request->producer_id;
-        $scrap->producer_phone = $request->producer_phone;
         $scrap->collector_id   = $request->collector_id;
         $scrap->payment_method = $request->mode;
         $scrap->cost           = $request->total_cost;
@@ -81,8 +86,8 @@ class CollectedScrapController extends ApiController
                 }
                 $scrap->producer_type = 'Household';
             }
-        } else if ($request->new_user) {
-            $us                   = (object) $request->new_user;
+        } else if ($request->newUser) {
+            $us                   = (object) $request->newUser;
             $scrap->address       = $us->request_address;
             $scrap->producer_type = 'Household';
         }
@@ -92,15 +97,16 @@ class CollectedScrapController extends ApiController
             $pickup->status = 'Resolved';
         }
 
-        $newHousehold = null;
-        if ($request->new_user) {
-            $newHousehold = $this->registerProducerDuringCollection($request->new_user);
-            if ($newHousehold != 'success') {
-                return $this->errorResponse($newHousehold, 422);
+        $new_household = null;
+        if ($request->newUser) {
+            $new_household = $this->registerProducerDuringCollection($request->newUser);
+            if ($new_household->message != 'success') {
+                return $this->errorResponse($new_household->message, 422);
             }
+            $scrap->producer_id = $new_household->household->id;
         }
 
-        $this->calculateTonnage($request->producer_id, $request->total_tonnage, $request->total_cost, $request->collector_id);
+        $this->calculateTonnage($scrap->producer_id, $request->total_tonnage, $request->total_cost, $request->collector_id);
 
         if ($request->mode == 'Wallet') {
             $fields = (object) [
@@ -154,26 +160,26 @@ class CollectedScrapController extends ApiController
         return $this->successResponse('Collected Scrap deleted successfully.', 200, true);
     }
 
-    public function calculateTonnage($producer_id, $total_tonnage, $totalCost, $collector_id)
+    public function calculateTonnage($producer_id, $total_tonnage, $total_cost, $collector_id)
     {
-        $producer = User::find($producer_id);
+        $producer = User::findOrFail($producer_id);
 
         if ($tt = $producer->total_tonnage) {
-            $formattedEarnings        = floatval($producer->total_earnings);
-            $formattedCost            = floatval($totalCost);
+            $formatted_earnings       = floatval($producer->total_earnings);
+            $formatted_cost           = floatval($total_cost);
             $producer->total_tonnage  = $tt += $total_tonnage;
-            $producer->total_earnings = $formattedEarnings += $formattedCost;
+            $producer->total_earnings = $formatted_earnings += $formatted_cost;
             $producer->save();
         } else {
             $producer->total_tonnage  = $total_tonnage;
-            $producer->total_earnings = $totalCost;
+            $producer->total_earnings = $total_cost;
             $producer->save();
         }
 
-        $collector = User::find($collector_id);
+        $collector = User::findOrFail($collector_id);
 
         if ($tt = $collector->total_tonnage) {
-            $formattedCost            = floatval($totalCost);
+            $formatted_cost           = floatval($total_cost);
             $collector->total_tonnage = $tt += $total_tonnage;
             $collector->save();
         } else {
@@ -181,14 +187,6 @@ class CollectedScrapController extends ApiController
             $collector->save();
         }
 
-    }
-
-    public function validateProducerId($id)
-    {
-        if ($producer = User::find($id)) {
-            return true;
-        }
-        return false;
     }
 
     public function isApproveddCollector($collector)
@@ -221,55 +219,131 @@ class CollectedScrapController extends ApiController
 
     public function calculateHistory($collection)
     {
-        $holder = (object) [];
-        $obj2   = array();
+        $holder           = (object) [];
+        $sorted_materials = array();
+
+        $original_materials = Material::all();
 
         foreach ($collection as $coll) {
-            array_filter(json_decode($coll->materials), function ($mat) use ($holder) {
-                if (property_exists($holder, $mat->name)) {
-                    $props = explode('-', $holder->{$mat->name});
-                    if ($mat->name == 'Composite') {
-                        $prevCost             = $props[1];
-                        $prevWeight           = $props[0];
-                        $cost                 = $prevCost + $mat->cost;
-                        $weight               = $prevWeight + $mat->weight;
-                        $holder->{$mat->name} = $weight . '-' . $cost;
-                    } else {
-                        $prevCost             = $props[1];
-                        $prevWeight           = $props[0];
-                        $cost                 = $prevCost + ($mat->weight * $mat->price);
-                        $weight               = $prevWeight + $mat->weight;
-                        $holder->{$mat->name} = $weight . '-' . $cost;
+            array_filter(json_decode($coll->materials), function ($mat) use ($holder, $original_materials) {
+
+                $collector_commission = 0;
+                $host_commission      = 0;
+                $revenue_commission   = 0;
+
+                foreach ($original_materials as $o_mat) {
+                    if ($o_mat->name == $mat->name) {
+                        $collector_commission = $o_mat['collector_commission'];
+                        $host_commission      = $o_mat['host_commission'];
+                        $revenue_commission   = $o_mat['revenue_commission'];
                     }
+                }
+
+                if (property_exists($holder, $mat->name)) {
+
+                    $current_material = $holder->{$mat->name};
+
+                    // error_log(json_encode($current_material));
+
+                    if ($mat->name == 'Composite') {
+                        $prev_cost     = $current_material->cost;
+                        $prev_weight   = $current_material->weight;
+                        $prev_col_com  = $current_material->collector_commission;
+                        $prev_host_com = $current_material->host_commission;
+                        $prev_rev_com  = $current_material->revenue_commission;
+
+                        $cost     = $prev_cost + $mat->cost;
+                        $weight   = $prev_weight + $mat->weight;
+                        $col_com  = $prev_col_com + ($mat->weight * $collector_commission);
+                        $host_com = $prev_host_com + ($mat->weight * $host_commission);
+                        $rev_com  = $prev_rev_com + ($mat->weight * $revenue_commission);
+
+                        $holder->{$mat->name} = (object) [
+                            'weight'               => $weight,
+                            'cost'                 => $cost,
+                            'collector_commission' => $col_com,
+                            'host_commission'      => $host_com,
+                            'revenue_commission'   => $rev_com
+                        ];
+
+                    } else {
+                        $prev_cost     = $current_material->cost;
+                        $prev_weight   = $current_material->weight;
+                        $prev_col_com  = $current_material->collector_commission;
+                        $prev_host_com = $current_material->host_commission;
+                        $prev_rev_com  = $current_material->revenue_commission;
+
+                        $cost     = $prev_cost + ($mat->weight * $mat->price);
+                        $weight   = $prev_weight + $mat->weight;
+                        $col_com  = $prev_col_com + ($mat->weight * $collector_commission);
+                        $host_com = $prev_host_com + ($mat->weight * $host_commission);
+                        $rev_com  = $prev_rev_com + ($mat->weight * $revenue_commission);
+
+                        $holder->{$mat->name} = (object) [
+                            'weight'               => $weight,
+                            'cost'                 => $cost,
+                            'collector_commission' => $col_com,
+                            'host_commission'      => $host_com,
+                            'revenue_commission'   => $rev_com
+                        ];
+                    }
+
                 } else {
                     if ($mat->name == 'Composite') {
-                        $holder->{$mat->name} = $mat->weight . '-' . $mat->cost;
+                        $holder->{$mat->name} = (object) [
+                            'weight'               => $mat->weight,
+                            'cost'                 => $mat->cost,
+                            'collector_commission' => $collector_commission * $mat->weight,
+                            'host_commission'      => $host_commission * $mat->weight,
+                            'revenue_commission'   => $revenue_commission * $mat->weight
+                        ];
                     } else {
-                        $holder->{$mat->name} = $mat->weight . '-' . $mat->weight * $mat->price;
+                        $holder->{$mat->name} = (object) [
+                            'weight'               => $mat->weight,
+                            'cost'                 => $mat->weight * $mat->price,
+                            'collector_commission' => $collector_commission * $mat->weight,
+                            'host_commission'      => $host_commission * $mat->weight,
+                            'revenue_commission'   => $revenue_commission * $mat->weight
+                        ];
                     }
                 }
             });
         }
 
-        foreach ($holder as $prop => $value) {
-            $props = explode('-', $holder->{$prop});
-            array_push($obj2, (object) [
-                'name'   => $prop,
-                'weight' => $props[0],
-                'cost'   => $props[1]
+        foreach ($holder as $material => $values) {
+            $current_material = $holder->{$material};
+            array_push($sorted_materials, (object) [
+                'name'                 => $material,
+                'weight'               => $current_material->weight,
+                'cost'                 => $current_material->cost,
+                'collector_commission' => $current_material->collector_commission,
+                'host_commission'      => $current_material->host_commission,
+                'revenue_commission'   => $current_material->revenue_commission
             ]);
         }
-        $total_tonnage = 0;
-        $total_cost    = 0;
-        foreach ($obj2 as $mat) {
-            $total_tonnage += $mat->weight;
-            $total_cost += $mat->cost;
+
+        $total_tonnage  = 0;
+        $total_cost     = 0;
+        $total_col_com  = 0;
+        $total_host_com = 0;
+        $total_rev_com  = 0;
+
+        foreach ($sorted_materials as $material) {
+            $total_tonnage += $material->weight;
+            $total_cost += $material->cost;
+            $total_col_com += $material->collector_commission;
+            $total_host_com += $material->host_commission;
+            $total_rev_com += $material->revenue_commission;
+
         }
 
         $hist = (object) [
-            'materials'     => $obj2,
-            'total_tonnage' => $total_tonnage,
-            'total_cost'    => $total_cost
+            'materials'                  => $sorted_materials,
+            'total_tonnage'              => $total_tonnage,
+            'total_cost'                 => $total_cost,
+            'total_collector_commission' => $total_col_com,
+            'total_host_commission'      => $total_host_com,
+            'total_revenue_commission'   => $total_rev_com
         ];
 
         return $hist;
@@ -289,20 +363,20 @@ class CollectedScrapController extends ApiController
 
                 $holder = (object) [];
 
-                array_filter($scrap, function ($d) use ($holder) {
-                    if (property_exists($holder, $d->name)) {
-                        $holder->{$d->name} = $holder->{$d->name}+$d->weight;
+                array_filter($scrap, function ($material) use ($holder) {
+                    if (property_exists($holder, $material->name)) {
+                        $holder->{$material->name} = $holder->{$material->name}+$material->weight;
                     } else {
-                        $holder->{$d->name} = $d->weight;
+                        $holder->{$material->name} = $material->weight;
                     }
                 });
 
                 $tonnage = array();
 
-                foreach ($holder as $prop => $value) {
+                foreach ($holder as $material => $value) {
                     array_push($tonnage, (object) [
-                        'name'   => $prop,
-                        'weight' => $holder->{$prop}
+                        'name'   => $material,
+                        'weight' => $holder->{$material}
                     ]);
                 }
 
@@ -323,10 +397,10 @@ class CollectedScrapController extends ApiController
 
             $tonnage = array();
 
-            foreach ($holder as $prop => $value) {
+            foreach ($holder as $material => $value) {
                 array_push($tonnage, (object) [
-                    'name'   => $prop,
-                    'weight' => (int) $holder->{$prop}
+                    'name'   => $material,
+                    'weight' => (int) $holder->{$material}
                 ]);
             }
 
@@ -347,20 +421,20 @@ class CollectedScrapController extends ApiController
 
             $holder = (object) [];
 
-            array_filter($scrap, function ($d) use ($holder) {
-                if (property_exists($holder, $d->name)) {
-                    $holder->{$d->name} = $holder->{$d->name}+$d->weight;
+            array_filter($scrap, function ($material) use ($holder) {
+                if (property_exists($holder, $material->name)) {
+                    $holder->{$material->name} = $holder->{$material->name}+$material->weight;
                 } else {
-                    $holder->{$d->name} = $d->weight;
+                    $holder->{$material->name} = $material->weight;
                 }
             });
 
             $tonnage = array();
 
-            foreach ($holder as $prop => $value) {
+            foreach ($holder as $material => $value) {
                 array_push($tonnage, (object) [
-                    'name'   => $prop,
-                    'weight' => $holder->{$prop}
+                    'name'   => $material,
+                    'weight' => $holder->{$material}
                 ]);
             }
 

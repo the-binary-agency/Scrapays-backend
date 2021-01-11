@@ -21,7 +21,7 @@ class PickupRequestController extends ApiController
      */
     public function index()
     {
-        $pickupRequest = PickupRequest::all();
+        $pickupRequest = PickupRequest::with('producer:id,phone')->get();
         return $this->showAll($pickupRequest);
     }
 
@@ -64,6 +64,7 @@ class PickupRequestController extends ApiController
     public function storeUssdPickup(Request $request)
     {
         $this->validate($request, [
+            'phone'         => 'required',
             'materials'     => 'required',
             'schedule_date' => 'required',
             'schedule_time' => 'required',
@@ -71,11 +72,14 @@ class PickupRequestController extends ApiController
             'description'   => 'required'
         ]);
 
-        $user          = User::findOrFail($request->producer_id);
+        $user = User::where('phone', $request->phone)->first();
+        if (!$user) {
+            return $this->errorResponse("User with phone number {$request->phone} not found.", 404);
+        }
         $pickupRequest = (object) [
             'materials'     => $request->materials,
             'schedule_date' => $request->schedule_date,
-            'time'          => $request->schedule_time,
+            'schedule_time' => $request->schedule_time,
             'address'       => $request->address,
             'comment'       => $request->comment,
             'description'   => $request->description

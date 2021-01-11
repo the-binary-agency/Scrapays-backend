@@ -33,10 +33,12 @@ trait ApiResponse
         ], $statusCode);
     }
 
-    protected function showAll(Collection $collection, $statusCode = 200)
+    protected function showAll(Collection $collection, $statusCode = 200, $native = true)
     {
-        $collection = $this->filterData($collection);
-        $collection = $this->sortData($collection);
+        if ($native) {
+            $collection = $this->filterData($collection);
+            $collection = $this->sortData($collection);
+        }
         $collection = $this->paginate($collection);
         $collection = $this->cacheResponse($collection);
 
@@ -54,7 +56,7 @@ trait ApiResponse
         $reqQuery = (array) request()->query();
 
         // Fields to exclude
-        $removeFields = ['page', 'sort_by', 'per_page'];
+        $removeFields = ['page', 'sort_by', 'per_page', 'query'];
 
         // Loop over removeFields and delete them from reqQuery
         foreach ($removeFields as $param) {

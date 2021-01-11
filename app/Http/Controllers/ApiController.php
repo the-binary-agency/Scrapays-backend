@@ -68,6 +68,8 @@ class ApiController extends Controller
 
     public function registerProducerDuringCollection($producer)
     {
+        error_log('gets here');
+
         $request           = (object) $producer;
         $user              = new User();
         $user->first_name  = $request->first_name;
@@ -83,20 +85,24 @@ class ApiController extends Controller
 
         $decoded = $this->createWallet($request);
 
-        $res = '';
+        $res = (object) [
+            'message'   => '',
+            'household' => ''
+        ];
         if ($decoded) {
             if ($decoded->error->message) {
-                $res = $decoded->error->message;
+                $res->message = $decoded->error->message;
             } else {
                 if ($decoded->success->message) {
                     $user->save();
                     $household->save();
                     $household->user()->save($user);
-                    $res = 'success';
+                    $res->message   = 'success';
+                    $res->household = User::where('phone', '+234' . substr($request->phone, 1))->first();
                 }
             }
         } else {
-            $res = 'Something went wrong, please try again.';
+            $res->message = 'Something went wrong, please try again.';
         }
         return $res;
     }

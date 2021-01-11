@@ -105,9 +105,6 @@ class LocationController extends ApiController
         $lat = $request->query('lat');
         $lng = $request->query('lng');
 
-        // error_log($lat);
-        // error_log($lng);
-
         $api_key = config('apikey.google');
 
         $curl = curl_init();
@@ -126,10 +123,10 @@ class LocationController extends ApiController
         $res             = json_decode($encodedResponse);
         // error_log(json_encode($res));
         $address_without_country = 'Lagos, Nigeria.';
+        return $this->successResponse($address_without_country, 200, true);
         if (array_key_exists(0, $res->results)) {
             $full_address            = $res->results[0]->formatted_address;
             $address_without_country = explode(', Nigeria', $full_address)[0];
         }
-        return $this->successResponse($address_without_country, 200, true);
     }
 }

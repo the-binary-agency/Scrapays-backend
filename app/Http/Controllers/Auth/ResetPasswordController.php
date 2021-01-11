@@ -18,7 +18,7 @@ class ResetPasswordController extends ApiController
     {
         return DB::table('password_resets')->where([
             'email' => $request->email,
-            'token' => $request->resetToken
+            'token' => $request->reset_token
         ]);
     }
 
